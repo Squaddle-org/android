@@ -1,0 +1,22 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew :app:assembleFossDebug
+      - run: ./gradlew :app:testFossDebugUnitTest
+      # android/CLAUDE.md: foss must never pull in Google Play Services/Firebase.
+      - name: Verify foss classpath has no GMS/Firebase
+        run: |
+          ./gradlew :app:dependencies --configuration fossDebugRuntimeClasspath > deps.txt
+          if grep -Eq 'com\.google\.android\.gms|com\.google\.firebase' deps.txt; then
+            echo "GMS/Firebase artifact found on the foss classpath:"
+            grep -E 'com\.google\.android\.gms|com\.google\.firebase' deps.txt
+            exit 1
+          fi

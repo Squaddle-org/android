@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Manifest-level theme only (first-frame/launch background) - the real Material3 theming
+         (light+dark ColorScheme) is applied by Compose itself in ui/theme/Theme.kt. -->
+    <style name="Theme.Squaddle" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/squaddle_background_light</item>
+        <item name="android:statusBarColor">@color/squaddle_brand</item>
+    </style>
+</resources>

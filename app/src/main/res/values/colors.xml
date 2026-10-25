@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand coral/orange, matches website/public/j/index.html's mark - not Compose's default
+         purple. The real Material3 ColorScheme (light+dark) lives in ui/theme/Color.kt; these two
+         are only for the manifest-level icon/launch theme, which Compose doesn't control. -->
+    <color name="squaddle_brand">#FF5D3A</color>
+    <color name="squaddle_background_light">#FFFBFF</color>
+</resources>
