@@ -23,9 +23,12 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import org.squaddle.app.data.RealSyncGateway
 import org.squaddle.app.ui.onboarding.OnboardingScreen
 import org.squaddle.app.ui.onboarding.OnboardingViewModel
+import org.squaddle.app.ui.room.RoomScreen
+import org.squaddle.app.ui.room.RoomViewModel
 import org.squaddle.app.ui.rooms.RoomsListScreen
 import org.squaddle.app.ui.rooms.RoomsListViewModel
 import org.squaddle.app.ui.theme.SquaddleTheme
+import org.squaddle.core.encoding.Base32
 
 /**
  * Single-activity app (android/CLAUDE.md). Real navigation (rooms -> room -> members/invite,
@@ -82,12 +85,25 @@ private fun SquaddleApp() {
             OnboardingScreen(viewModel = viewModel, onFinished = { startupState = StartupState.SignedIn })
         }
         is StartupState.SignedIn -> {
-            val viewModel: RoomsListViewModel = viewModel(
-                factory = viewModelFactory {
-                    initializer { RoomsListViewModel(container.syncGateway(), container.appLocalStore) }
-                },
-            )
-            RoomsListScreen(viewModel = viewModel, onOpenRoom = { /* Room screen lands in the next commit */ })
+            var openRoomId by remember { mutableStateOf<ByteArray?>(null) }
+            val roomId = openRoomId
+            if (roomId == null) {
+                val viewModel: RoomsListViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer { RoomsListViewModel(container.syncGateway(), container.appLocalStore) }
+                    },
+                )
+                RoomsListScreen(viewModel = viewModel, onOpenRoom = { openRoomId = it })
+            } else {
+                val roomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: "Room"
+                val viewModel: RoomViewModel = viewModel(
+                    key = Base32.encode(roomId),
+                    factory = viewModelFactory {
+                        initializer { RoomViewModel(roomId, container.session!!.userIdentity.userKey, container.syncGateway()) }
+                    },
+                )
+                RoomScreen(viewModel = viewModel, roomName = roomName, onBack = { openRoomId = null })
+            }
         }
     }
 }
