@@ -19,7 +19,16 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- https://squaddle.org/j/* App Link intent-filter added in the join-flow commit. -->
+            <!-- android/CLAUDE.md: App Links for https://squaddle.org/j/* with autoVerify=true;
+                 the matching assetlinks.json lives in the website repo. autoVerify lets Android
+                 open these links directly in the app instead of a browser disambiguation sheet,
+                 once the SHA-256 fingerprint below is published there. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="squaddle.org" android:pathPrefix="/j/" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>
