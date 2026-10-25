@@ -1,0 +1,46 @@
+-- App-local bookkeeping only - nothing here has protocol meaning, unlike core's own SquaddleDb.
+-- Room *names* aren't a protocol concept (ARCHITECTURE.md: a room's display name is "locally
+-- chosen," never signed or sent anywhere except optionally inside an invite envelope's roomName
+-- field), and there is no per-user "list my rooms" relay endpoint either - so "which rooms do I
+-- know about, and what do I call them" has to be tracked by this app itself.
+
+CREATE TABLE known_rooms (
+  room_id           BLOB NOT NULL PRIMARY KEY,
+  display_name      TEXT NOT NULL,
+  relay_host        TEXT NOT NULL,
+  joined_at         INTEGER NOT NULL,
+  -- Stamped by the repository (System.currentTimeMillis()) whenever a pull() for this room
+  -- actually returns new log entries or ops - there's no wall-clock timestamp on an op in the
+  -- wire format to read this from instead (OpEnvelope carries a lamport counter, not a clock).
+  last_activity_at  INTEGER NOT NULL
+);
+
+insertKnownRoom:
+INSERT OR REPLACE INTO known_rooms (room_id, display_name, relay_host, joined_at, last_activity_at)
+VALUES (?, ?, ?, ?, ?);
+
+allKnownRooms:
+SELECT * FROM known_rooms ORDER BY last_activity_at DESC;
+
+knownRoom:
+SELECT * FROM known_rooms WHERE room_id = ?;
+
+touchRoomActivity:
+UPDATE known_rooms SET last_activity_at = ? WHERE room_id = ?;
+
+deleteKnownRoom:
+DELETE FROM known_rooms WHERE room_id = ?;
+
+-- "Unread" = the synced cursor (core's own LocalStore.cursorFor) is ahead of what the user has
+-- actually opened this room to look at - purely a local UI nicety, not a protocol concept.
+CREATE TABLE read_cursors (
+  room_id               BLOB NOT NULL PRIMARY KEY,
+  last_read_log_index   INTEGER NOT NULL,
+  last_read_ops_cursor  INTEGER NOT NULL
+);
+
+upsertReadCursor:
+INSERT OR REPLACE INTO read_cursors (room_id, last_read_log_index, last_read_ops_cursor) VALUES (?, ?, ?);
+
+readCursorFor:
+SELECT * FROM read_cursors WHERE room_id = ?;
