@@ -1,6 +1,7 @@
 package org.squaddle.app.di
 
 import android.content.Context
+import org.squaddle.app.crypto.AndroidIdentityVault
 import org.squaddle.app.crypto.IdentityVault
 import org.squaddle.app.store.AppLocalStore
 import org.squaddle.core.crypto.Crypto
@@ -20,7 +21,7 @@ import org.squaddle.core.store.createSqlDriver
  * no separate generated/hand-written `ViewModelFactory` class needed on top of that.
  */
 public class AppContainer(private val context: Context) {
-    public val identityVault: IdentityVault = IdentityVault(context)
+    public val identityVault: IdentityVault = AndroidIdentityVault(context)
     public val appLocalStore: AppLocalStore = AppLocalStore(context)
 
     public lateinit var crypto: Crypto
@@ -42,7 +43,10 @@ public class AppContainer(private val context: Context) {
         val record = identityVault.load() ?: return false
         val identity = UserIdentity.fromEntropy(crypto, record.entropy)
         val device = KeyPair(record.devicePublicKey, record.deviceSecretKey)
-        val cert = DeviceCert.decode(record.deviceCertCbor) ?: return false
+        val cert = DeviceCert(
+            user = record.deviceCertUser, userBox = record.deviceCertUserBox, device = record.devicePublicKey,
+            label = record.deviceCertLabel, issuedAt = record.deviceCertIssuedAt, sig = record.deviceCertSig,
+        )
         openSession(identity, device, cert)
         return true
     }

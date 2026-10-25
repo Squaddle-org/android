@@ -105,21 +105,3 @@ public class FakeSyncGateway : SyncGateway {
 
     override suspend fun joinViaLink(link: InviteLink): PushOutcome = joinOutcome
 }
-
-private object FakeCrypto : org.squaddle.core.crypto.Crypto {
-    override fun randomBytes(n: Int): ByteArray = ByteArray(n)
-    override fun blake2b256(vararg parts: ByteArray): ByteArray = ByteArray(32)
-    override fun sha256(data: ByteArray): ByteArray = ByteArray(32)
-    override fun signSeedKeypair(seed32: ByteArray): org.squaddle.core.crypto.KeyPair =
-        org.squaddle.core.crypto.KeyPair(ByteArray(32), ByteArray(64))
-    override fun sign(secretKey: ByteArray, message: ByteArray): ByteArray = ByteArray(64)
-    override fun verify(publicKey: ByteArray, message: ByteArray, signature: ByteArray): Boolean = true
-    override fun boxSeedKeypair(seed32: ByteArray): org.squaddle.core.crypto.KeyPair =
-        org.squaddle.core.crypto.KeyPair(ByteArray(32), ByteArray(32))
-    override fun sealBox(recipientPk: ByteArray, plaintext: ByteArray): ByteArray = plaintext
-    override fun openSealedBox(recipient: org.squaddle.core.crypto.KeyPair, ciphertext: ByteArray): ByteArray? = ciphertext
-    override fun aeadEncrypt(key: ByteArray, nonce: ByteArray, plaintext: ByteArray, ad: ByteArray): ByteArray = plaintext
-    override fun aeadDecrypt(key: ByteArray, nonce: ByteArray, ciphertext: ByteArray, ad: ByteArray): ByteArray? = ciphertext
-    override fun kdf(master32: ByteArray, id: Long, context: String): ByteArray = ByteArray(32)
-    override fun argon2id(password: ByteArray, salt16: ByteArray, opsLimit: Long, memLimit: Int): ByteArray = ByteArray(32)
-}
