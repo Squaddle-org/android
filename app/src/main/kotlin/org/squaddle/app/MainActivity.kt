@@ -21,6 +21,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import org.squaddle.app.data.RealSyncGateway
+import org.squaddle.app.ui.members.MembersScreen
+import org.squaddle.app.ui.members.MembersViewModel
 import org.squaddle.app.ui.onboarding.OnboardingScreen
 import org.squaddle.app.ui.onboarding.OnboardingViewModel
 import org.squaddle.app.ui.room.RoomScreen
@@ -95,14 +97,30 @@ private fun SquaddleApp() {
                 )
                 RoomsListScreen(viewModel = viewModel, onOpenRoom = { openRoomId = it })
             } else {
+                var showMembers by remember(roomId) { mutableStateOf(false) }
                 val roomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: "Room"
-                val viewModel: RoomViewModel = viewModel(
-                    key = Base32.encode(roomId),
-                    factory = viewModelFactory {
-                        initializer { RoomViewModel(roomId, container.session!!.userIdentity.userKey, container.syncGateway()) }
-                    },
-                )
-                RoomScreen(viewModel = viewModel, roomName = roomName, onBack = { openRoomId = null })
+                if (showMembers) {
+                    val membersViewModel: MembersViewModel = viewModel(
+                        key = "members_${Base32.encode(roomId)}",
+                        factory = viewModelFactory {
+                            initializer { MembersViewModel(roomId, container.session!!.userIdentity.userKey, container.syncGateway()) }
+                        },
+                    )
+                    MembersScreen(viewModel = membersViewModel, onBack = { showMembers = false })
+                } else {
+                    val viewModel: RoomViewModel = viewModel(
+                        key = Base32.encode(roomId),
+                        factory = viewModelFactory {
+                            initializer { RoomViewModel(roomId, container.session!!.userIdentity.userKey, container.syncGateway()) }
+                        },
+                    )
+                    RoomScreen(
+                        viewModel = viewModel,
+                        roomName = roomName,
+                        onBack = { openRoomId = null },
+                        onOpenMembers = { showMembers = true },
+                    )
+                }
             }
         }
     }

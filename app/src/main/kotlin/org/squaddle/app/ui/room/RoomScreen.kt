@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -43,7 +45,13 @@ import androidx.compose.ui.unit.dp
 import org.squaddle.core.encoding.Base32
 
 @Composable
-public fun RoomScreen(viewModel: RoomViewModel, roomName: String, onBack: () -> Unit) {
+public fun RoomScreen(
+    viewModel: RoomViewModel,
+    roomName: String,
+    onBack: () -> Unit,
+    onOpenMembers: () -> Unit = {},
+    onOpenInvite: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
@@ -53,6 +61,10 @@ public fun RoomScreen(viewModel: RoomViewModel, roomName: String, onBack: () -> 
                 title = { Text(roomName) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
+                actions = {
+                    IconButton(onClick = onOpenMembers) { Icon(Icons.Filled.People, contentDescription = "Members") }
+                    IconButton(onClick = onOpenInvite) { Icon(Icons.Filled.MailOutline, contentDescription = "Invite") }
                 },
             )
         },
