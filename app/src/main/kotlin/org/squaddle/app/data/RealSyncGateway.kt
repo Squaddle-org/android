@@ -112,6 +112,11 @@ public class RealSyncGateway(
         return outcome
     }
 
+    override suspend fun syncedCursor(room: ByteArray): Pair<Long, Long>? {
+        val cursor = session.store.cursorFor(room) ?: return null
+        return cursor.last_log_index to cursor.last_ops_cursor
+    }
+
     override suspend fun connectLiveUpdates(room: ByteArray, onChanged: () -> Unit) {
         val sync = syncClientForRoom(room)
         // core's own connectLiveUpdates suspends for the socket's lifetime and already calls

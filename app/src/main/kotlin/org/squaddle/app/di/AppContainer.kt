@@ -3,6 +3,9 @@ package org.squaddle.app.di
 import android.content.Context
 import org.squaddle.app.crypto.AndroidIdentityVault
 import org.squaddle.app.crypto.IdentityVault
+import org.squaddle.app.data.RealSyncGateway
+import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.store.AndroidAppLocalStore
 import org.squaddle.app.store.AppLocalStore
 import org.squaddle.core.crypto.Crypto
 import org.squaddle.core.crypto.KeyPair
@@ -22,7 +25,7 @@ import org.squaddle.core.store.createSqlDriver
  */
 public class AppContainer(private val context: Context) {
     public val identityVault: IdentityVault = AndroidIdentityVault(context)
-    public val appLocalStore: AppLocalStore = AppLocalStore(context)
+    public val appLocalStore: AppLocalStore = AndroidAppLocalStore(context)
 
     public lateinit var crypto: Crypto
         private set
@@ -57,6 +60,10 @@ public class AppContainer(private val context: Context) {
         val store = LocalStore(createSqlDriver(CORE_DB_NAME))
         return AppSession(crypto, identity, device, deviceCert, store).also { session = it }
     }
+
+    /** The real [SyncGateway] for the current [session] - every screen past onboarding gets its
+     * gateway this way rather than constructing [RealSyncGateway] itself. */
+    public fun syncGateway(): SyncGateway = RealSyncGateway(requireNotNull(session) { "no session - onboarding not completed yet" }, appLocalStore)
 
     public companion object {
         /** The only relay host baked into the app - what "create room" uses. Joining a room via

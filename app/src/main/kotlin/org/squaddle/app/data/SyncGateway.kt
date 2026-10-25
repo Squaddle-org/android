@@ -30,6 +30,12 @@ public interface SyncGateway {
 
     public suspend fun pull(room: ByteArray): SyncOutcome
 
+    /** `(lastLogIndex, lastOpsCursor)` as core's own `LocalStore` currently has them synced to,
+     * or `null` if nothing has ever been pulled for [room] yet - what the Rooms list compares
+     * against `AppLocalDb`'s `read_cursors` to compute "unread" (a purely local UI concept, not
+     * a protocol one; see `AppLocalDb.sq`'s own doc comment). */
+    public suspend fun syncedCursor(room: ByteArray): Pair<Long, Long>?
+
     /** Launches core's `connectLiveUpdates` (a real WebSocket subscription) and invokes
      * [onChanged] whenever a short local-store-only poll (no network) observes new data - see the
      * plan's own note on why this is polled rather than pushed directly from core. Suspends for

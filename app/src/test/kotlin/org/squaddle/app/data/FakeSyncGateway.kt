@@ -24,6 +24,7 @@ public class FakeSyncGateway : SyncGateway {
     public var peekRoomName: String? = "Test Room"
     public var opOutcome: Boolean = true
     public var logEntryOutcome: PushOutcome = PushOutcome.Ok
+    public var syncedCursorResult: Pair<Long, Long>? = null
 
     public val createdIdeas: MutableList<Pair<String, String?>> = mutableListOf()
     public val votes: MutableList<Pair<String, Int>> = mutableListOf()
@@ -39,6 +40,8 @@ public class FakeSyncGateway : SyncGateway {
     override suspend fun createRoom(roomName: String, relayHost: String): Result<ByteArray> = createRoomResult
 
     override suspend fun pull(room: ByteArray): SyncOutcome = pullOutcome
+
+    override suspend fun syncedCursor(room: ByteArray): Pair<Long, Long>? = syncedCursorResult
 
     override suspend fun connectLiveUpdates(room: ByteArray, onChanged: () -> Unit) {
         // No-op in tests - nothing to subscribe to.

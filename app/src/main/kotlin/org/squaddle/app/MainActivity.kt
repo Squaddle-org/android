@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +23,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import org.squaddle.app.data.RealSyncGateway
 import org.squaddle.app.ui.onboarding.OnboardingScreen
 import org.squaddle.app.ui.onboarding.OnboardingViewModel
+import org.squaddle.app.ui.rooms.RoomsListScreen
+import org.squaddle.app.ui.rooms.RoomsListViewModel
 import org.squaddle.app.ui.theme.SquaddleTheme
 
 /**
@@ -80,13 +81,13 @@ private fun SquaddleApp() {
             )
             OnboardingScreen(viewModel = viewModel, onFinished = { startupState = StartupState.SignedIn })
         }
-        is StartupState.SignedIn -> SignedInPlaceholder() // real rooms list lands in the next commit
-    }
-}
-
-@Composable
-private fun SignedInPlaceholder() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("You're in. Rooms list coming next.")
+        is StartupState.SignedIn -> {
+            val viewModel: RoomsListViewModel = viewModel(
+                factory = viewModelFactory {
+                    initializer { RoomsListViewModel(container.syncGateway(), container.appLocalStore) }
+                },
+            )
+            RoomsListScreen(viewModel = viewModel, onOpenRoom = { /* Room screen lands in the next commit */ })
+        }
     }
 }
