@@ -1,0 +1,56 @@
+package org.squaddle.app.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Hand-built Material3 tonal roles seeded from the brand coral/orange (#FF5D3A, already used as
+// the mark in website/public/j/index.html) - deliberately not Compose's default purple. Tertiary
+// is a cool teal accent for contrast against the warm primary/secondary family ("playful but
+// clean"), same role Material3's own baseline themes usually give a contrasting hue.
+
+internal val PrimaryLight = Color(0xFFFF5D3A)
+internal val OnPrimaryLight = Color(0xFFFFFFFF)
+internal val PrimaryContainerLight = Color(0xFFFFDBCB)
+internal val OnPrimaryContainerLight = Color(0xFF3A0B00)
+internal val SecondaryLight = Color(0xFF77574B)
+internal val OnSecondaryLight = Color(0xFFFFFFFF)
+internal val SecondaryContainerLight = Color(0xFFFFDBCE)
+internal val OnSecondaryContainerLight = Color(0xFF2C160D)
+internal val TertiaryLight = Color(0xFF3D6373)
+internal val OnTertiaryLight = Color(0xFFFFFFFF)
+internal val TertiaryContainerLight = Color(0xFFC0E9FB)
+internal val OnTertiaryContainerLight = Color(0xFF001F29)
+internal val ErrorLight = Color(0xFFBA1A1A)
+internal val OnErrorLight = Color(0xFFFFFFFF)
+internal val ErrorContainerLight = Color(0xFFFFDAD6)
+internal val OnErrorContainerLight = Color(0xFF410002)
+internal val BackgroundLight = Color(0xFFFFFBFF)
+internal val OnBackgroundLight = Color(0xFF201A17)
+internal val SurfaceLight = Color(0xFFFFFBFF)
+internal val OnSurfaceLight = Color(0xFF201A17)
+internal val SurfaceVariantLight = Color(0xFFF5DED6)
+internal val OnSurfaceVariantLight = Color(0xFF53433D)
+internal val OutlineLight = Color(0xFF85736C)
+
+internal val PrimaryDark = Color(0xFFFFB59D)
+internal val OnPrimaryDark = Color(0xFF5F1600)
+internal val PrimaryContainerDark = Color(0xFF872300)
+internal val OnPrimaryContainerDark = Color(0xFFFFDBCB)
+internal val SecondaryDark = Color(0xFFE7BDB0)
+internal val OnSecondaryDark = Color(0xFF432A1F)
+internal val SecondaryContainerDark = Color(0xFF5C4033)
+internal val OnSecondaryContainerDark = Color(0xFFFFDBCE)
+internal val TertiaryDark = Color(0xFFA4CDE0)
+internal val OnTertiaryDark = Color(0xFF063542)
+internal val TertiaryContainerDark = Color(0xFF234C5A)
+internal val OnTertiaryContainerDark = Color(0xFFC0E9FB)
+internal val ErrorDark = Color(0xFFFFB4AB)
+internal val OnErrorDark = Color(0xFF690005)
+internal val ErrorContainerDark = Color(0xFF93000A)
+internal val OnErrorContainerDark = Color(0xFFFFDAD6)
+internal val BackgroundDark = Color(0xFF181210)
+internal val OnBackgroundDark = Color(0xFFEDE0DB)
+internal val SurfaceDark = Color(0xFF181210)
+internal val OnSurfaceDark = Color(0xFFEDE0DB)
+internal val SurfaceVariantDark = Color(0xFF53433D)
+internal val OnSurfaceVariantDark = Color(0xFFD8C2B9)
+internal val OutlineDark = Color(0xFF9F8D86)
