@@ -2,6 +2,7 @@
 
 package org.squaddle.app.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -58,6 +59,37 @@ public class RealSyncGateway(
         return session.syncClientFor(relayHost)
     }
 
+    /** [SyncClient]'s HTTP/WS calls throw on connection-level failures (DNS, TLS handshake,
+     * timeout, refused) rather than returning an outcome - these three helpers are the single
+     * place that turns such a throw into the same Result/Outcome shape every caller already
+     * handles, so a relay being unreachable surfaces as a UI error instead of crashing the app. */
+    private suspend fun <T> catchingResult(block: suspend () -> T): Result<T> =
+        try {
+            Result.success(block())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+
+    private suspend fun catchingPushOutcome(block: suspend () -> PushOutcome): PushOutcome =
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            PushOutcome.Error(0, "network_error", e.message ?: e::class.simpleName ?: "network error")
+        }
+
+    private suspend fun catchingSyncOutcome(block: suspend () -> SyncOutcome): SyncOutcome =
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            SyncOutcome.Error(0, "network_error", e.message ?: e::class.simpleName ?: "network error")
+        }
+
     private fun buildHistory(room: ByteArray): MembershipHistory {
         var state: MembershipState = MembershipStateImpl.empty(session.crypto)
         val storedEntries = mutableListOf<StoredEntry>()
@@ -91,44 +123,44 @@ public class RealSyncGateway(
         return map
     }
 
-    override suspend fun registerDevice(): PushOutcome {
+    override suspend fun registerDevice(): PushOutcome = catchingPushOutcome {
         // Registering needs *a* relay to talk to even before any room exists - the gateway's default.
-        return session.syncClientFor(defaultRelayHost).publishDeviceCert()
+        session.syncClientFor(defaultRelayHost).publishDeviceCert()
     }
 
-    override suspend fun createRoom(roomName: String): Result<ByteArray> {
+    override suspend fun createRoom(roomName: String): Result<ByteArray> = catchingResult {
         val sync = session.syncClientFor(defaultRelayHost)
         val nonce = session.crypto.randomBytes(16)
         val room = roomId(session.crypto, session.userIdentity.userKey, nonce)
         val outcome = sync.createRoom(room, nonce)
-        if (outcome != PushOutcome.Ok) return Result.failure(IllegalStateException("createRoom failed: $outcome"))
+        if (outcome != PushOutcome.Ok) throw IllegalStateException("createRoom failed: $outcome")
         val now = System.currentTimeMillis()
         appLocalStore.insertKnownRoom(room, roomName, defaultRelayHost, now, now)
-        return Result.success(room)
+        room
     }
 
     /** Seed-only restore: lists every room this user holds an active role in on [defaultRelayHost]
      * (the only relay this device knows to ask before any room has been locally recovered), then
      * inserts+pulls each one. "Squaddle room" is the same placeholder display name [joinViaLink]
      * falls back to - a room's display name was never a protocol concept (`AppLocalDb.sq`). */
-    override suspend fun restoreKnownRooms(): Result<Int> {
+    override suspend fun restoreKnownRooms(): Result<Int> = catchingResult {
         val sync = session.syncClientFor(defaultRelayHost)
         val outcome = sync.listMyRooms()
         if (outcome !is ListRoomsOutcome.Ok) {
-            return Result.failure(IllegalStateException("listMyRooms failed: $outcome"))
+            throw IllegalStateException("listMyRooms failed: $outcome")
         }
         val now = System.currentTimeMillis()
         for (ref in outcome.rooms) {
             appLocalStore.insertKnownRoom(ref.roomId, "Squaddle room", ref.relayHost, now, now)
             pull(ref.roomId)
         }
-        return Result.success(outcome.rooms.size)
+        outcome.rooms.size
     }
 
-    override suspend fun pull(room: ByteArray): SyncOutcome {
+    override suspend fun pull(room: ByteArray): SyncOutcome = catchingSyncOutcome {
         val outcome = syncClientForRoom(room).pull(room)
         if (outcome == SyncOutcome.Ok) appLocalStore.touchRoomActivity(room, System.currentTimeMillis())
-        return outcome
+        outcome
     }
 
     override suspend fun syncedCursor(room: ByteArray): Pair<Long, Long>? {
@@ -144,7 +176,18 @@ public class RealSyncGateway(
         // (see the plan). This poll is local-SQLite-only (no network) and just exists to notice
         // when that internal pull landed new data.
         coroutineScope {
-            launch { sync.connectLiveUpdates(listOf(room)) }
+            // Caught here, not propagated: structured concurrency would otherwise cancel the
+            // sibling local-poll launch below the instant the socket fails to connect, same
+            // crash-shaped failure mode as every other real network call in this class.
+            launch {
+                try {
+                    sync.connectLiveUpdates(listOf(room))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Best-effort: the local poll below still notices new data from a later pull().
+                }
+            }
             launch {
                 var lastLogIndex = session.store.maxLogIndex(room)
                 var lastOpsCursor = session.store.maxOpsCursor(room)
@@ -192,7 +235,13 @@ public class RealSyncGateway(
     private suspend fun enqueueAndPush(room: ByteArray, body: OpBody): Boolean {
         val sync = syncClientForRoom(room)
         if (!sync.enqueueOp(room, body)) return false
-        sync.push(room) // best-effort; a failed push just leaves the op queued for the next one
+        try {
+            sync.push(room) // best-effort; a failed push just leaves the op queued for the next one
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Op is already queued in the local outbox - a later pull()/push() retries it.
+        }
         return true
     }
 
@@ -217,7 +266,7 @@ public class RealSyncGateway(
     /** REMOVE + an immediate `autoRotate` right after - mirrors `core`'s own
      * `EndToEndIntegrationTest` kick sequence exactly, rather than waiting for a lazy
      * `rotation_required` bounce on some future content push. */
-    override suspend fun kick(room: ByteArray, target: ByteArray): PushOutcome {
+    override suspend fun kick(room: ByteArray, target: ByteArray): PushOutcome = catchingPushOutcome {
         val sync = syncClientForRoom(room)
         val removeOutcome = sync.appendLogEntry(room) { index, prev ->
             LogEntry.sign(
@@ -225,13 +274,13 @@ public class RealSyncGateway(
                 EntryType.REMOVE, CborValue.Map(mapOf(0L to CborValue.Bytes(target))), nowUnixSeconds(),
             )
         }
-        if (removeOutcome != PushOutcome.Ok) return removeOutcome
-        return sync.autoRotate(room)
+        if (removeOutcome != PushOutcome.Ok) return@catchingPushOutcome removeOutcome
+        sync.autoRotate(room)
     }
 
-    override suspend fun setRole(room: ByteArray, target: ByteArray, role: String): PushOutcome {
+    override suspend fun setRole(room: ByteArray, target: ByteArray, role: String): PushOutcome = catchingPushOutcome {
         val sync = syncClientForRoom(room)
-        return sync.appendLogEntry(room) { index, prev ->
+        sync.appendLogEntry(room) { index, prev ->
             LogEntry.sign(
                 session.crypto, session.device.secretKey, room, index, prev, session.userIdentity.userKey, session.deviceCert,
                 EntryType.SET_ROLE, CborValue.Map(mapOf(0L to CborValue.Bytes(target), 1L to CborValue.Text(role))), nowUnixSeconds(),
@@ -239,9 +288,9 @@ public class RealSyncGateway(
         }
     }
 
-    override suspend fun transferOwner(room: ByteArray, target: ByteArray): PushOutcome {
+    override suspend fun transferOwner(room: ByteArray, target: ByteArray): PushOutcome = catchingPushOutcome {
         val sync = syncClientForRoom(room)
-        return sync.appendLogEntry(room) { index, prev ->
+        sync.appendLogEntry(room) { index, prev ->
             LogEntry.sign(
                 session.crypto, session.device.secretKey, room, index, prev, session.userIdentity.userKey, session.deviceCert,
                 EntryType.TRANSFER_OWNER, CborValue.Map(mapOf(0L to CborValue.Bytes(target))), nowUnixSeconds(),
@@ -249,9 +298,9 @@ public class RealSyncGateway(
         }
     }
 
-    override suspend fun reject(room: ByteArray, target: ByteArray): PushOutcome {
+    override suspend fun reject(room: ByteArray, target: ByteArray): PushOutcome = catchingPushOutcome {
         val sync = syncClientForRoom(room)
-        return sync.appendLogEntry(room) { index, prev ->
+        sync.appendLogEntry(room) { index, prev ->
             LogEntry.sign(
                 session.crypto, session.device.secretKey, room, index, prev, session.userIdentity.userKey, session.deviceCert,
                 EntryType.REJECT, CborValue.Map(mapOf(0L to CborValue.Bytes(target))), nowUnixSeconds(),
@@ -263,15 +312,15 @@ public class RealSyncGateway(
      * their own `join` entry's embedded cert (same log scan `SyncClient`'s own private
      * `collectUserBoxKeys` already does internally for `autoRotate`, duplicated here since that
      * helper isn't public: a public-API-only loop, not new protocol logic). */
-    override suspend fun approve(room: ByteArray, target: ByteArray): PushOutcome {
+    override suspend fun approve(room: ByteArray, target: ByteArray): PushOutcome = catchingPushOutcome {
         val sync = syncClientForRoom(room)
         val epoch = buildHistory(room).current.epoch
         val epochKey = sync.epochKeyFor(room, epoch)
-            ?: return PushOutcome.Error(500, "invalid", "epoch key not available locally")
+            ?: return@catchingPushOutcome PushOutcome.Error(500, "invalid", "epoch key not available locally")
         val targetUserBox = collectUserBoxKeys(room)[target.toKey()]
-            ?: return PushOutcome.Error(500, "invalid", "target's userBoxKey not found - have they sent a join entry yet?")
+            ?: return@catchingPushOutcome PushOutcome.Error(500, "invalid", "target's userBoxKey not found - have they sent a join entry yet?")
         val sealed = EpochKeys.seal(session.crypto, targetUserBox, room, epoch, epochKey)
-        return sync.appendLogEntry(room) { index, prev ->
+        sync.appendLogEntry(room) { index, prev ->
             LogEntry.sign(
                 session.crypto, session.device.secretKey, room, index, prev, session.userIdentity.userKey, session.deviceCert,
                 EntryType.APPROVE, CborValue.Map(mapOf(0L to CborValue.Bytes(target), 1L to CborValue.Bytes(sealed))), nowUnixSeconds(),
@@ -279,21 +328,21 @@ public class RealSyncGateway(
         }
     }
 
-    override suspend fun createInvite(room: ByteArray, requiresApproval: Boolean, expiresAt: Long?, maxUses: Int?): Result<InviteLink> {
+    override suspend fun createInvite(room: ByteArray, requiresApproval: Boolean, expiresAt: Long?, maxUses: Int?): Result<InviteLink> = catchingResult {
         val relayHost = appLocalStore.knownRoom(room)?.relay_host
-            ?: return Result.failure(IllegalStateException("room not known locally"))
+            ?: throw IllegalStateException("room not known locally")
         val sync = session.syncClientFor(relayHost)
         val roomName = appLocalStore.knownRoom(room)?.display_name
         val inviteId = session.crypto.randomBytes(16)
         val outcome = sync.createInvite(room, inviteId, requiresApproval, expiresAt, maxUses, roomName)
-        if (outcome != PushOutcome.Ok) return Result.failure(IllegalStateException("createInvite failed: $outcome"))
+        if (outcome != PushOutcome.Ok) throw IllegalStateException("createInvite failed: $outcome")
         if (requiresApproval) {
             // §3.5: "For approval invites, no envelope exists" - no secret to carry in the link.
-            return Result.success(InviteLink(relayHost, room, inviteId, inviteSecret = null))
+            return@catchingResult InviteLink(relayHost, room, inviteId, inviteSecret = null)
         }
         val secret = session.store.inviteSecretsFor(room).firstOrNull { it.invite_id.contentEquals(inviteId) }?.secret
-            ?: return Result.failure(IllegalStateException("invite secret missing right after createInvite"))
-        return Result.success(InviteLink(relayHost, room, inviteId, secret))
+            ?: throw IllegalStateException("invite secret missing right after createInvite")
+        InviteLink(relayHost, room, inviteId, secret)
     }
 
     override fun parseInviteLink(text: String): InviteLink? = InviteLink.parse(text)
@@ -336,14 +385,14 @@ public class RealSyncGateway(
      * the same two already-public calls `joinViaLink`'s own open-invite path makes *after* its
      * envelope step (`pullLog` then `appendLogEntry`); no `core` change is needed for this path.
      */
-    override suspend fun joinViaLink(link: InviteLink): PushOutcome {
+    override suspend fun joinViaLink(link: InviteLink): PushOutcome = catchingPushOutcome {
         val sync = session.syncClientFor(link.relayHost)
         val outcome = if (link.inviteSecret != null) {
             sync.joinViaLink(link.roomId, link.inviteId, link.inviteSecret)
         } else {
             val pullOutcome = sync.pullLog(link.roomId)
             if (pullOutcome is SyncOutcome.Error) {
-                return PushOutcome.Error(pullOutcome.status, pullOutcome.code, pullOutcome.message)
+                return@catchingPushOutcome PushOutcome.Error(pullOutcome.status, pullOutcome.code, pullOutcome.message)
             }
             sync.appendLogEntry(link.roomId) { index, prev ->
                 LogEntry.sign(
@@ -357,6 +406,6 @@ public class RealSyncGateway(
             val now = System.currentTimeMillis()
             appLocalStore.insertKnownRoom(link.roomId, roomName, link.relayHost, now, now)
         }
-        return outcome
+        outcome
     }
 }
