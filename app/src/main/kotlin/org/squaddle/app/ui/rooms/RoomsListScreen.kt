@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package org.squaddle.app.ui.rooms
 
 import androidx.compose.foundation.background
@@ -14,17 +16,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,14 +40,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import org.squaddle.app.BuildConfig
 import org.squaddle.core.encoding.Base32
 
 @Composable
-public fun RoomsListScreen(viewModel: RoomsListViewModel, onOpenRoom: (ByteArray) -> Unit) {
+public fun RoomsListScreen(viewModel: RoomsListViewModel, onOpenRoom: (ByteArray) -> Unit, onOpenDeveloperSettings: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Rooms") },
+                actions = {
+                    if (BuildConfig.DEBUG) {
+                        IconButton(onClick = onOpenDeveloperSettings, modifier = Modifier.testTag("developerSettingsButton")) {
+                            Icon(Icons.Filled.Settings, contentDescription = "Developer settings")
+                        }
+                    }
+                },
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = "Create room")

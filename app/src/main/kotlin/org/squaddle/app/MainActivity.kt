@@ -41,6 +41,8 @@ import org.squaddle.app.ui.onboarding.OnboardingScreen
 import org.squaddle.app.ui.onboarding.OnboardingViewModel
 import org.squaddle.app.ui.room.RoomScreen
 import org.squaddle.app.ui.room.RoomViewModel
+import org.squaddle.app.settings.DeveloperSettingsScreen
+import org.squaddle.app.settings.DeveloperSettingsViewModel
 import org.squaddle.app.ui.rooms.RoomsListScreen
 import org.squaddle.app.ui.rooms.RoomsListViewModel
 import org.squaddle.app.ui.theme.SquaddleTheme
@@ -188,14 +190,22 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
 @Composable
 private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: org.squaddle.app.data.SyncGateway) {
     var openRoomId by remember { mutableStateOf<ByteArray?>(null) }
+    var showDeveloperSettings by remember { mutableStateOf(false) }
     val roomId = openRoomId
-    if (roomId == null) {
+    if (showDeveloperSettings) {
+        val viewModel: DeveloperSettingsViewModel = viewModel(
+            factory = viewModelFactory {
+                initializer { DeveloperSettingsViewModel(container.developerSettingsStore, container.effectiveRelayHost) }
+            },
+        )
+        DeveloperSettingsScreen(viewModel = viewModel, onBack = { showDeveloperSettings = false })
+    } else if (roomId == null) {
         val viewModel: RoomsListViewModel = viewModel(
             factory = viewModelFactory {
                 initializer { RoomsListViewModel(gateway, container.appLocalStore) }
             },
         )
-        RoomsListScreen(viewModel = viewModel, onOpenRoom = { openRoomId = it })
+        RoomsListScreen(viewModel = viewModel, onOpenRoom = { openRoomId = it }, onOpenDeveloperSettings = { showDeveloperSettings = true })
     } else {
         var subScreen by remember(roomId) { mutableStateOf<RoomSubScreen>(RoomSubScreen.Ideas) }
         val roomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: "Room"
