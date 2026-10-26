@@ -117,7 +117,7 @@ private fun ShowSeedStep(words: List<String>, wroteItDown: Boolean, onToggle: ()
 private fun EnterSeedStep(input: String, error: String?, onInputChange: (String) -> Unit, onSubmit: () -> Unit, onBack: () -> Unit) {
     Text("Enter your recovery phrase", style = MaterialTheme.typography.headlineSmall)
     Text(
-        "This recovers your identity, but not your rooms - you'll need new invite links to rejoin them (or an encrypted backup file, coming later).",
+        "This recovers your identity and rejoins every room on your default relay that you're still a member of. Rooms hosted on a different relay will need a fresh invite link.",
         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
     )
     OutlinedTextField(

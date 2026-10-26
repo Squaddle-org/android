@@ -30,8 +30,9 @@ public sealed interface OnboardingUiState {
  * Create: generate identity+device, show the 24-word seed with a required "I wrote it down"
  * confirm, ask a display name, persist, register the device.
  * Restore: enter 24 words (validated via [UserIdentity.fromMnemonic]), same device-registration
- * flow - room membership is NOT recovered this way (no protocol-level way to; see the plan's own
- * note - §7's Backup file is what carries a room list across a restore, and that's M4b).
+ * flow, then [SyncGateway.restoreKnownRooms] (PROTOCOL.md §5, spec v1.0.0-draft.3) recovers every
+ * room the user holds an active role in on the gateway's configured relay - rooms on a different
+ * relay still need a fresh invite link.
  * Never logs the mnemonic, entropy, or any key material (CLAUDE.md).
  */
 public class OnboardingViewModel(
@@ -120,6 +121,11 @@ public class OnboardingViewModel(
             // Best-effort: a failed device registration (e.g. no network right now) doesn't block
             // onboarding - it's a one-shot publish that can be retried by any later sync.
             gateway.registerDevice()
+            if (state.isRestore) {
+                // Best-effort, same posture as registerDevice() above - the rooms list screen's
+                // own pull-to-refresh covers a failed/partial recovery.
+                gateway.restoreKnownRooms()
+            }
             _uiState.value = OnboardingUiState.Done
         }
     }
