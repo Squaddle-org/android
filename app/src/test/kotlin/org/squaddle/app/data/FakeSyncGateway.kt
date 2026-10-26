@@ -35,12 +35,16 @@ public class FakeSyncGateway : SyncGateway {
     public val transfers: MutableList<String> = mutableListOf()
     public val approvals: MutableList<String> = mutableListOf()
     public val rejections: MutableList<String> = mutableListOf()
+    public var restoreKnownRoomsCalls: Int = 0
 
     override suspend fun registerDevice(): PushOutcome = registerDeviceOutcome
 
     override suspend fun createRoom(roomName: String): Result<ByteArray> = createRoomResult
 
-    override suspend fun restoreKnownRooms(): Result<Int> = restoreKnownRoomsResult
+    override suspend fun restoreKnownRooms(): Result<Int> {
+        restoreKnownRoomsCalls++
+        return restoreKnownRoomsResult
+    }
 
     override suspend fun pull(room: ByteArray): SyncOutcome = pullOutcome
 

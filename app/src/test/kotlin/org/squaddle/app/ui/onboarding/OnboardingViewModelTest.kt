@@ -78,6 +78,36 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun finishOnTheRestorePathCallsRestoreKnownRoomsButCreatePathDoesNot() = runTest(testDispatcher) {
+        val createGateway = FakeSyncGateway()
+        val create = viewModel(gateway = createGateway)
+        create.startCreate()
+        create.toggleWroteItDown()
+        create.confirmSeedWritten()
+        create.updateDisplayName("Alex")
+        create.finish()
+        advanceUntilIdle()
+        assertEquals(0, createGateway.restoreKnownRoomsCalls)
+
+        val restoreVault = FakeIdentityVault()
+        val create2 = viewModel()
+        create2.startCreate()
+        val words = (create2.uiState.value as OnboardingUiState.ShowSeed).words
+
+        val restoreGateway = FakeSyncGateway()
+        val restore = viewModel(vault = restoreVault, gateway = restoreGateway)
+        restore.startRestore()
+        restore.updateSeedInput(words.joinToString(" "))
+        restore.submitSeed()
+        restore.updateDisplayName("Alex")
+        restore.finish()
+        advanceUntilIdle()
+
+        assertEquals(1, restoreGateway.restoreKnownRoomsCalls)
+        assertEquals(OnboardingUiState.Done, restore.uiState.value)
+    }
+
+    @Test
     fun restoreWithInvalidPhraseShowsErrorAndStaysOnEnterSeed() {
         val vm = viewModel()
         vm.startRestore()
