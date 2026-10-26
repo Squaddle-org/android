@@ -128,6 +128,15 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
     val gateway = remember { container.syncGateway() }
     var joinLink by remember { mutableStateOf<InviteLink?>(null) }
 
+    // Best-effort retry of PUT /users/{user}/devices/{device} on every cold start: idempotent
+    // (self-certifying, just overwrites the same stored cert - relay/internal/api/devices.go's
+    // putDevice) and cheap, so this is a safe, stateless way to recover from onboarding's own
+    // registerDevice() call having failed (e.g. relay unreachable at the time) without needing
+    // to persist any "still pending" flag.
+    LaunchedEffect(Unit) {
+        gateway.registerDevice()
+    }
+
     // App Link: consume a pending deep link once, whenever one arrives (first launch, or a
     // relaunch via onNewIntent while already signed in).
     LaunchedEffect(pendingDeepLink.value) {
