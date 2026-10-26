@@ -1,10 +1,13 @@
 package org.squaddle.app.di
 
 import android.content.Context
+import org.squaddle.app.BuildConfig
 import org.squaddle.app.crypto.AndroidIdentityVault
 import org.squaddle.app.crypto.IdentityVault
 import org.squaddle.app.data.RealSyncGateway
 import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.settings.AndroidDeveloperSettingsStore
+import org.squaddle.app.settings.DeveloperSettingsStore
 import org.squaddle.app.store.AndroidAppLocalStore
 import org.squaddle.app.store.AppLocalStore
 import org.squaddle.core.crypto.Crypto
@@ -26,6 +29,15 @@ import org.squaddle.core.store.createSqlDriver
 public class AppContainer(private val context: Context) {
     public val identityVault: IdentityVault = AndroidIdentityVault(context)
     public val appLocalStore: AppLocalStore = AndroidAppLocalStore(context)
+    public val developerSettingsStore: DeveloperSettingsStore = AndroidDeveloperSettingsStore(context)
+
+    /** The relay host every client-initiated action (create room, register device, seed-restore
+     * room recovery) talks to - a debug-build override if one is set, else the build's own
+     * default. Joining a room via a received invite link talks to whatever relay host that link
+     * names instead (ARCHITECTURE.md's federation-ready design never assumes a single relay per
+     * user). */
+    public val effectiveRelayHost: String
+        get() = developerSettingsStore.relayHostOverride()?.takeIf { it.isNotBlank() } ?: BuildConfig.DEFAULT_RELAY_HOST
 
     public lateinit var crypto: Crypto
         private set
@@ -63,13 +75,10 @@ public class AppContainer(private val context: Context) {
 
     /** The real [SyncGateway] for the current [session] - every screen past onboarding gets its
      * gateway this way rather than constructing [RealSyncGateway] itself. */
-    public fun syncGateway(): SyncGateway = RealSyncGateway(requireNotNull(session) { "no session - onboarding not completed yet" }, appLocalStore)
+    public fun syncGateway(): SyncGateway =
+        RealSyncGateway(requireNotNull(session) { "no session - onboarding not completed yet" }, appLocalStore, effectiveRelayHost)
 
     public companion object {
-        /** The only relay host baked into the app - what "create room" uses. Joining a room via
-         * a received invite link talks to whatever relay host that link names instead
-         * (ARCHITECTURE.md's federation-ready design never assumes a single relay per user). */
-        public const val DEFAULT_RELAY_HOST: String = "relay.squaddle.org"
         private const val CORE_DB_NAME = "squaddle_core.db"
     }
 }

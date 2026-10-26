@@ -7,7 +7,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.squaddle.app.di.AppContainer
 import org.squaddle.app.di.AppSession
 import org.squaddle.app.store.AppLocalStore
 import org.squaddle.core.encoding.CborValue
@@ -27,6 +26,7 @@ import org.squaddle.core.ops.OpEnvelope
 import org.squaddle.core.ops.OpOpenResult
 import org.squaddle.core.ops.RoomState
 import org.squaddle.core.store.LocalStore
+import org.squaddle.core.sync.ListRoomsOutcome
 import org.squaddle.core.sync.PushOutcome
 import org.squaddle.core.sync.SyncClient
 import org.squaddle.core.sync.SyncOutcome
@@ -49,6 +49,7 @@ private fun b64Url(bytes: ByteArray): String = Base64.UrlSafe.withPadding(Base64
 public class RealSyncGateway(
     private val session: AppSession,
     private val appLocalStore: AppLocalStore,
+    private val defaultRelayHost: String,
 ) : SyncGateway {
 
     private fun syncClientForRoom(room: ByteArray): SyncClient {
@@ -91,19 +92,37 @@ public class RealSyncGateway(
     }
 
     override suspend fun registerDevice(): PushOutcome {
-        // Registering needs *a* relay to talk to even before any room exists - the app's default.
-        return session.syncClientFor(AppContainer.DEFAULT_RELAY_HOST).publishDeviceCert()
+        // Registering needs *a* relay to talk to even before any room exists - the gateway's default.
+        return session.syncClientFor(defaultRelayHost).publishDeviceCert()
     }
 
-    override suspend fun createRoom(roomName: String, relayHost: String): Result<ByteArray> {
-        val sync = session.syncClientFor(relayHost)
+    override suspend fun createRoom(roomName: String): Result<ByteArray> {
+        val sync = session.syncClientFor(defaultRelayHost)
         val nonce = session.crypto.randomBytes(16)
         val room = roomId(session.crypto, session.userIdentity.userKey, nonce)
         val outcome = sync.createRoom(room, nonce)
         if (outcome != PushOutcome.Ok) return Result.failure(IllegalStateException("createRoom failed: $outcome"))
         val now = System.currentTimeMillis()
-        appLocalStore.insertKnownRoom(room, roomName, relayHost, now, now)
+        appLocalStore.insertKnownRoom(room, roomName, defaultRelayHost, now, now)
         return Result.success(room)
+    }
+
+    /** Seed-only restore: lists every room this user holds an active role in on [defaultRelayHost]
+     * (the only relay this device knows to ask before any room has been locally recovered), then
+     * inserts+pulls each one. "Squaddle room" is the same placeholder display name [joinViaLink]
+     * falls back to - a room's display name was never a protocol concept (`AppLocalDb.sq`). */
+    override suspend fun restoreKnownRooms(): Result<Int> {
+        val sync = session.syncClientFor(defaultRelayHost)
+        val outcome = sync.listMyRooms()
+        if (outcome !is ListRoomsOutcome.Ok) {
+            return Result.failure(IllegalStateException("listMyRooms failed: $outcome"))
+        }
+        val now = System.currentTimeMillis()
+        for (ref in outcome.rooms) {
+            appLocalStore.insertKnownRoom(ref.roomId, "Squaddle room", ref.relayHost, now, now)
+            pull(ref.roomId)
+        }
+        return Result.success(outcome.rooms.size)
     }
 
     override suspend fun pull(room: ByteArray): SyncOutcome {

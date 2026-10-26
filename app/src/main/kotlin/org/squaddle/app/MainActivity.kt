@@ -109,7 +109,7 @@ private fun SquaddleApp(pendingDeepLink: MutableState<String?>) {
                             identityVault = container.identityVault,
                             openSession = { identity, device, cert ->
                                 val session = container.openSession(identity, device, cert)
-                                RealSyncGateway(session, container.appLocalStore)
+                                RealSyncGateway(session, container.appLocalStore, container.effectiveRelayHost)
                             },
                         )
                     }

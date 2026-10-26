@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.squaddle.app.data.SyncGateway
-import org.squaddle.app.di.AppContainer
 import org.squaddle.app.store.AppLocalStore
 import org.squaddle.app.store.Known_rooms
 
@@ -68,7 +67,7 @@ public class RoomsListViewModel(
     public fun createRoom(roomName: String) {
         if (roomName.isBlank()) return
         viewModelScope.launch {
-            val outcome = gateway.createRoom(roomName, AppContainer.DEFAULT_RELAY_HOST)
+            val outcome = gateway.createRoom(roomName)
             if (outcome.isFailure) {
                 _uiState.value = _uiState.value.copy(createRoomError = outcome.exceptionOrNull()?.message ?: "failed to create room")
             } else {

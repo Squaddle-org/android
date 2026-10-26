@@ -19,6 +19,7 @@ public class FakeSyncGateway : SyncGateway {
     public var history: MembershipHistory = MembershipHistory.build(emptyList(), org.squaddle.core.membership.MembershipStateImpl.empty(FakeCrypto))
     public var myRoleResult: Role? = Role.OWNER
     public var createRoomResult: Result<ByteArray> = Result.success(ByteArray(32))
+    public var restoreKnownRoomsResult: Result<Int> = Result.success(0)
     public var createInviteResult: Result<InviteLink> = Result.success(InviteLink("relay.squaddle.org", ByteArray(32), ByteArray(16), ByteArray(32)))
     public var joinOutcome: PushOutcome = PushOutcome.Ok
     public var peekRoomName: String? = "Test Room"
@@ -37,7 +38,9 @@ public class FakeSyncGateway : SyncGateway {
 
     override suspend fun registerDevice(): PushOutcome = registerDeviceOutcome
 
-    override suspend fun createRoom(roomName: String, relayHost: String): Result<ByteArray> = createRoomResult
+    override suspend fun createRoom(roomName: String): Result<ByteArray> = createRoomResult
+
+    override suspend fun restoreKnownRooms(): Result<Int> = restoreKnownRoomsResult
 
     override suspend fun pull(room: ByteArray): SyncOutcome = pullOutcome
 

@@ -25,8 +25,16 @@ public interface SyncGateway {
     public suspend fun registerDevice(): PushOutcome
 
     /** Mints a room id+nonce, calls core's `createRoom`, and records it in the local
-     * known-rooms registry (room names/registry aren't a protocol concept - see `AppLocalDb.sq`). */
-    public suspend fun createRoom(roomName: String, relayHost: String): Result<ByteArray>
+     * known-rooms registry (room names/registry aren't a protocol concept - see `AppLocalDb.sq`).
+     * Always uses the gateway's own configured relay host (see [RealSyncGateway]'s constructor) -
+     * every call site has only ever passed that one value anyway. */
+    public suspend fun createRoom(roomName: String): Result<ByteArray>
+
+    /** Seed-only restore (PROTOCOL.md §5, spec v1.0.0-draft.3): asks the gateway's configured
+     * relay for every room the current user holds an active role in, inserts each into the local
+     * known-rooms registry, and pulls it. Returns the count recovered. Scoped to that single
+     * relay - rooms on a different relay need a fresh invite link instead. */
+    public suspend fun restoreKnownRooms(): Result<Int>
 
     public suspend fun pull(room: ByteArray): SyncOutcome
 
