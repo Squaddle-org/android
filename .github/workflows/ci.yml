@@ -21,6 +21,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew :app:assembleFossDebug
         env: { SQUADDLE_CORE_DIR: ../core }
+      # Debug build, self-signed by AGP's built-in debug keystore - installable, but not a
+      # release artifact. No signed-release pipeline exists yet (needs a real signing keystore +
+      # secrets, a separate decision).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-foss-debug
+          path: android/app/build/outputs/apk/foss/debug/app-foss-debug.apk
+          if-no-files-found: error
       - run: ./gradlew :app:testFossDebugUnitTest
         env: { SQUADDLE_CORE_DIR: ../core }
       # android/CLAUDE.md: foss must never pull in Google Play Services/Firebase.
