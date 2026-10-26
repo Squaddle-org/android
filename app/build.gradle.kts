@@ -22,6 +22,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "DEFAULT_RELAY_HOST", "\"relay.squaddle.org\"")
     }
 
     // android/CLAUDE.md: foss (no Google deps at all, F-Droid) and play (Play Billing only, not
@@ -45,6 +46,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
