@@ -13,8 +13,10 @@ jobs:
       # the only supported mode) - org.squaddle:core:0.1.0-SNAPSHOT is never resolvable from
       # google()/mavenCentral(), so CI needs the same composite-build substitution local dev uses
       # (settings.gradle.kts's SQUADDLE_CORE_DIR), checked out as a true sibling directory.
+      # token: '' forces an anonymous clone - the default GITHUB_TOKEN is scoped only to this
+      # (android) repo and 404s on any other repo, even a public one in the same org.
       - uses: actions/checkout@v4
-        with: { repository: squaddle-org/core, path: core }
+        with: { repository: squaddle-org/core, path: core, token: '' }
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
       - uses: android-actions/setup-android@v4
