@@ -1,20 +1,25 @@
 package org.squaddle.app
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -115,6 +120,30 @@ internal fun extractLinkParam(referrer: String): String? {
         java.net.URLDecoder.decode(match.groupValues[1], "UTF-8")
     } catch (e: Exception) {
         null
+    }
+}
+
+private const val NTFY_PACKAGE_ID = "io.heckel.ntfy"
+
+/**
+ * The install-ntfy banner's own button. `play` opens the Play Store listing (`market://` so it
+ * opens in the Play Store app itself rather than a browser tab, falling back to the plain
+ * `https://play.google.com/store/...` web URL if nothing handles `market://` - an emulator/AOSP
+ * build with no Play Store app installed, say); `foss` opens ntfy's F-Droid listing instead,
+ * consistent with android/CLAUDE.md's "foss: no Google deps at all, F-Droid" split - the same
+ * flavor-aware posture `InstallReferrerChecker` already uses, just as a plain URI rather than a
+ * whole separate flavor source set (there's no API difference to abstract here, only the link).
+ */
+private fun openNtfyInstallPage(context: Context) {
+    val uri = if (BuildConfig.FLAVOR == "play") {
+        "market://details?id=$NTFY_PACKAGE_ID"
+    } else {
+        "https://f-droid.org/packages/$NTFY_PACKAGE_ID/"
+    }
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uri)))
+    } catch (e: ActivityNotFoundException) {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=$NTFY_PACKAGE_ID")))
     }
 }
 
@@ -383,10 +412,16 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                 text = stringResource(R.string.outbox_pending_hint, outboxCount),
                 modifier = bannerModifier.testTag("outboxBanner"),
             )
-            showInstallNtfyHint -> Text(
-                text = stringResource(R.string.push_install_ntfy_hint),
-                modifier = bannerModifier,
-            )
+            showInstallNtfyHint -> {
+                val context = LocalContext.current
+                Row(modifier = bannerModifier, verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = stringResource(R.string.push_install_ntfy_hint), modifier = Modifier.weight(1f))
+                    TextButton(
+                        onClick = { openNtfyInstallPage(context) },
+                        modifier = Modifier.testTag("installNtfyButton"),
+                    ) { Text(stringResource(R.string.push_install_ntfy_action)) }
+                }
+            }
         }
     }
 }

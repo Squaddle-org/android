@@ -41,6 +41,7 @@
 
     <!-- MainActivity.kt's SignedInApp - shown only when PushRegistrar.noDistributorInstalled(). -->
     <string name="push_install_ntfy_hint">Installiere ntfy für sofortige Updates - ohne ntfy prüft Squaddle nur alle paar Stunden auf neue Aktivität.</string>
+    <string name="push_install_ntfy_action">Installieren</string>
 
     <!-- MainActivity.kt's SignedInApp - shown whenever SyncGateway.outboxCount() > 0 (offline, or
          sync is otherwise stuck); takes priority over push_install_ntfy_hint in the same banner slot. -->
