@@ -8,13 +8,13 @@ import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -28,20 +28,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import kotlinx.coroutines.delay
 import org.squaddle.app.data.InviteLink
 import org.squaddle.app.data.RealSyncGateway
+import org.squaddle.app.di.AppContainer
 import org.squaddle.app.push.PushRegistrar
+import org.squaddle.app.referrer.InstallReferrerChecker
+import org.squaddle.app.settings.DeveloperSettingsScreen
+import org.squaddle.app.settings.DeveloperSettingsViewModel
 import org.squaddle.app.ui.invite.InviteScreen
 import org.squaddle.app.ui.invite.InviteViewModel
 import org.squaddle.app.ui.join.ClipboardInviteBanner
@@ -49,17 +59,18 @@ import org.squaddle.app.ui.join.JoinScreen
 import org.squaddle.app.ui.join.JoinViewModel
 import org.squaddle.app.ui.members.MembersScreen
 import org.squaddle.app.ui.members.MembersViewModel
+import org.squaddle.app.ui.nav.Route
 import org.squaddle.app.ui.onboarding.OnboardingScreen
 import org.squaddle.app.ui.onboarding.OnboardingViewModel
 import org.squaddle.app.ui.room.RoomScreen
 import org.squaddle.app.ui.room.RoomViewModel
-import org.squaddle.app.settings.DeveloperSettingsScreen
-import org.squaddle.app.settings.DeveloperSettingsViewModel
-import org.squaddle.app.ui.settings.SettingsScreen
-import org.squaddle.app.ui.settings.SettingsViewModel
 import org.squaddle.app.ui.rooms.RoomsListScreen
 import org.squaddle.app.ui.rooms.RoomsListViewModel
+import org.squaddle.app.ui.settings.SettingsScreen
+import org.squaddle.app.ui.settings.SettingsViewModel
 import org.squaddle.app.ui.theme.SquaddleTheme
+import org.squaddle.app.ui.voucher.VoucherRedeemScreen
+import org.squaddle.app.ui.voucher.VoucherRedeemViewModel
 import org.squaddle.core.encoding.Base32
 
 /**
@@ -67,6 +78,11 @@ import org.squaddle.core.encoding.Base32
  * via the App Link while already running arrives through [onNewIntent], not a fresh [onCreate] -
  * [pendingDeepLink] is the one piece of state that has to live outside the Compose tree to
  * survive that.
+ *
+ * A [androidx.fragment.app.FragmentActivity] (not a plain `ComponentActivity`) only because
+ * [androidx.biometric.BiometricPrompt] (the Settings screen's seed reveal) requires one - see
+ * that code's own doc comment, and `gradle/libs.versions.toml`'s `fragment` entry for the real
+ * crash this combination caused before `androidx.fragment` was pinned to a compatible version.
  */
 public class MainActivity : FragmentActivity() {
     private val pendingDeepLink = mutableStateOf<String?>(null)
@@ -108,11 +124,13 @@ private sealed interface StartupState {
     data object SignedIn : StartupState
 }
 
-private sealed interface RoomSubScreen {
-    data object Ideas : RoomSubScreen
-    data object Members : RoomSubScreen
-    data object Invite : RoomSubScreen
-    data object Voucher : RoomSubScreen
+/** Pushes [link] as a [Route.Join] destination unless one's already on top (an App Link re-fire,
+ * the clipboard check, and the install-referrer check can all race to suggest the same or a
+ * different link in quick succession - this just keeps the back stack from accumulating more
+ * than one). */
+private fun NavController.navigateToJoin(link: InviteLink) {
+    if (currentBackStackEntry?.destination?.route?.startsWith("org.squaddle.app.ui.nav.Route.Join") == true) return
+    navigate(Route.Join(link.toUriString()))
 }
 
 @Composable
@@ -144,6 +162,10 @@ private fun SquaddleApp(pendingDeepLink: MutableState<String?>) {
                     }
                 },
             )
+            // Reaching StartupState.SignedIn below discards this whole composable subtree (and
+            // with it, OnboardingViewModel's own state) on the next recomposition - onboarding
+            // was never a nav back-stack entry to begin with, so "back on rooms list must not
+            // return to onboarding" holds with no popUpTo/cleanup step needed here at all.
             OnboardingScreen(viewModel = viewModel, onFinished = { startupState = StartupState.SignedIn })
         }
         is StartupState.SignedIn -> SignedInApp(container, pendingDeepLink)
@@ -151,10 +173,10 @@ private fun SquaddleApp(pendingDeepLink: MutableState<String?>) {
 }
 
 @Composable
-private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeepLink: MutableState<String?>) {
+private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<String?>) {
     val gateway = remember { container.syncGateway() }
     val context = LocalContext.current
-    var joinLink by remember { mutableStateOf<InviteLink?>(null) }
+    val navController = rememberNavController()
     var showInstallNtfyHint by remember { mutableStateOf(false) }
     var outboxCount by remember { mutableStateOf(0) }
 
@@ -183,7 +205,7 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
     LaunchedEffect(Unit) {
         while (true) {
             outboxCount = gateway.outboxCount()
-            kotlinx.coroutines.delay(5000)
+            delay(5000)
         }
     }
 
@@ -200,11 +222,15 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
     }
 
     // App Link: consume a pending deep link once, whenever one arrives (first launch, or a
-    // relaunch via onNewIntent while already signed in).
+    // relaunch via onNewIntent while already signed in). Pushed as a real Route.Join destination
+    // on top of whatever's currently showing - RoomsList is always the graph's start destination
+    // underneath everything, so back from here always lands on it ("entered via App Link: back
+    // goes to the room's parent" - RoomsList is that parent, with no synthetic stack-building
+    // needed since it was never popped off in the first place).
     LaunchedEffect(pendingDeepLink.value) {
         val text = pendingDeepLink.value
         if (text != null) {
-            gateway.parseInviteLink(text)?.let { joinLink = it }
+            gateway.parseInviteLink(text)?.let { navController.navigateToJoin(it) }
             pendingDeepLink.value = null
         }
     }
@@ -214,10 +240,9 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
     // `InstallReferrerChecker` is the `foss`-flavor-always-null version unless this is a `play`
     // build (see that class's own two flavor-specific source files).
     LaunchedEffect(Unit) {
-        val referrer = org.squaddle.app.referrer.InstallReferrerChecker().referrerUrl(context) ?: return@LaunchedEffect
-        if (joinLink != null) return@LaunchedEffect
+        val referrer = InstallReferrerChecker().referrerUrl(context) ?: return@LaunchedEffect
         val link = gateway.parseInviteLink(referrer) ?: extractLinkParam(referrer)?.let { gateway.parseInviteLink(it) }
-        link?.let { joinLink = it }
+        link?.let { navController.navigateToJoin(it) }
     }
 
     // Clipboard fallback (ARCHITECTURE.md): checked once per cold start on resume, never polled
@@ -231,7 +256,7 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val text = clipboardManager.getText()?.text
-                if (text != null && text != dismissedClipboardText && joinLink == null) {
+                if (text != null && text != dismissedClipboardText) {
                     gateway.parseInviteLink(text)?.let { clipboardSuggestion = it }
                 }
             }
@@ -240,127 +265,49 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val currentJoinLink = joinLink
-    if (currentJoinLink != null) {
-        val joinViewModel: JoinViewModel = viewModel(
-            key = "join_${Base32.encode(currentJoinLink.roomId)}_${Base32.encode(currentJoinLink.inviteId)}",
-            factory = viewModelFactory { initializer { JoinViewModel(gateway) } },
-        )
-        LaunchedEffect(currentJoinLink) { joinViewModel.openWithLink(currentJoinLink) }
-        JoinScreen(
-            viewModel = joinViewModel,
-            onJoined = { joinLink = null },
-            onCancelled = { joinLink = null },
-        )
-    } else {
-        Box(modifier = Modifier.fillMaxSize()) {
-            RoomsOrRoom(container, gateway)
-            clipboardSuggestion?.let { suggestion ->
-                ClipboardInviteBanner(
-                    onOpen = { joinLink = suggestion; clipboardSuggestion = null },
-                    onDismiss = {
-                        dismissedClipboardText = clipboardManager.getText()?.text
-                        clipboardSuggestion = null
-                    },
-                    modifier = Modifier.Companion.align(Alignment.TopCenter),
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(navController = navController, startDestination = Route.RoomsList) {
+            composable<Route.RoomsList> {
+                val viewModel: RoomsListViewModel = viewModel(
+                    factory = viewModelFactory { initializer { RoomsListViewModel(gateway, container.appLocalStore) } },
+                )
+                RoomsListScreen(
+                    viewModel = viewModel,
+                    onOpenRoom = { navController.navigate(Route.Room(Base32.encode(it))) },
+                    onOpenSettings = { navController.navigate(Route.Settings) },
+                    onOpenDeveloperSettings = { navController.navigate(Route.DeveloperSettings) },
                 )
             }
-            // Mutually exclusive: a stuck outbox is the more urgent, currently-active problem,
-            // so it wins this one shared banner slot over the (purely advisory) "install ntfy" hint.
-            // bottom = 88.dp (not 16.dp) clears a bottom-end FAB's own footprint - RoomsListScreen/
-            // RoomScreen both place one there, and this Box has no visibility into that Scaffold's
-            // own layout to avoid it automatically (found on a real device: the plain 16.dp padding
-            // let the banner's second line render directly under the FAB).
-            val bannerModifier = Modifier.Companion.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 88.dp)
-            when {
-                outboxCount > 0 -> Text(
-                    text = stringResource(R.string.outbox_pending_hint, outboxCount),
-                    modifier = bannerModifier.testTag("outboxBanner"),
-                )
-                showInstallNtfyHint -> Text(
-                    text = stringResource(R.string.push_install_ntfy_hint),
-                    modifier = bannerModifier,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: org.squaddle.app.data.SyncGateway) {
-    var openRoomId by remember { mutableStateOf<ByteArray?>(null) }
-    var showDeveloperSettings by remember { mutableStateOf(false) }
-    var showSettings by remember { mutableStateOf(false) }
-    val roomId = openRoomId
-    if (showDeveloperSettings) {
-        val viewModel: DeveloperSettingsViewModel = viewModel(
-            factory = viewModelFactory {
-                initializer { DeveloperSettingsViewModel(container.developerSettingsStore, container.effectiveRelayHost) }
-            },
-        )
-        DeveloperSettingsScreen(viewModel = viewModel, onBack = { showDeveloperSettings = false })
-    } else if (showSettings) {
-        val viewModel: SettingsViewModel = viewModel(
-            factory = viewModelFactory {
-                initializer {
-                    SettingsViewModel(
-                        crypto = container.crypto,
-                        userIdentity = container.session!!.userIdentity,
-                        appLocalStore = container.appLocalStore,
-                        backupManager = container.backupManager,
-                        passphraseVault = container.backupPassphraseVault,
-                        autoBackupSettings = container.autoBackupSettings,
-                    )
-                }
-            },
-        )
-        SettingsScreen(viewModel = viewModel, onBack = { showSettings = false })
-    } else if (roomId == null) {
-        val viewModel: RoomsListViewModel = viewModel(
-            factory = viewModelFactory {
-                initializer { RoomsListViewModel(gateway, container.appLocalStore) }
-            },
-        )
-        RoomsListScreen(
-            viewModel = viewModel,
-            onOpenRoom = { openRoomId = it },
-            onOpenSettings = { showSettings = true },
-            onOpenDeveloperSettings = { showDeveloperSettings = true },
-        )
-    } else {
-        var subScreen by remember(roomId) { mutableStateOf<RoomSubScreen>(RoomSubScreen.Ideas) }
-        val roomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: "Room"
-        when (subScreen) {
-            is RoomSubScreen.Members -> {
-                val membersViewModel: MembersViewModel = viewModel(
-                    key = "members_${Base32.encode(roomId)}",
+            composable<Route.Settings> {
+                val viewModel: SettingsViewModel = viewModel(
                     factory = viewModelFactory {
-                        initializer { MembersViewModel(roomId, container.session!!.userIdentity.userKey, gateway) }
+                        initializer {
+                            SettingsViewModel(
+                                crypto = container.crypto,
+                                userIdentity = container.session!!.userIdentity,
+                                appLocalStore = container.appLocalStore,
+                                backupManager = container.backupManager,
+                                passphraseVault = container.backupPassphraseVault,
+                                autoBackupSettings = container.autoBackupSettings,
+                            )
+                        }
                     },
                 )
-                MembersScreen(viewModel = membersViewModel, onBack = { subScreen = RoomSubScreen.Ideas })
+                SettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
             }
-            is RoomSubScreen.Invite -> {
-                val inviteViewModel: InviteViewModel = viewModel(
-                    key = "invite_${Base32.encode(roomId)}",
+            composable<Route.DeveloperSettings> {
+                val viewModel: DeveloperSettingsViewModel = viewModel(
                     factory = viewModelFactory {
-                        initializer { InviteViewModel(roomId, gateway) }
+                        initializer { DeveloperSettingsViewModel(container.developerSettingsStore, container.effectiveRelayHost) }
                     },
                 )
-                InviteScreen(viewModel = inviteViewModel, onBack = { subScreen = RoomSubScreen.Ideas })
+                DeveloperSettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
             }
-            is RoomSubScreen.Voucher -> {
-                val voucherViewModel: org.squaddle.app.ui.voucher.VoucherRedeemViewModel = viewModel(
-                    key = "voucher_${Base32.encode(roomId)}",
-                    factory = viewModelFactory {
-                        initializer { org.squaddle.app.ui.voucher.VoucherRedeemViewModel(roomId, gateway) }
-                    },
-                )
-                org.squaddle.app.ui.voucher.VoucherRedeemScreen(viewModel = voucherViewModel, onBack = { subScreen = RoomSubScreen.Ideas })
-            }
-            is RoomSubScreen.Ideas -> {
+            composable<Route.Room> { backStackEntry ->
+                val route: Route.Room = backStackEntry.toRoute()
+                val roomId = remember(route.roomIdB32) { Base32.decode(route.roomIdB32) ?: ByteArray(0) }
+                val roomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: stringResource(R.string.default_room_name)
                 val viewModel: RoomViewModel = viewModel(
-                    key = Base32.encode(roomId),
                     factory = viewModelFactory {
                         initializer { RoomViewModel(roomId, container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
                     },
@@ -368,12 +315,78 @@ private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: or
                 RoomScreen(
                     viewModel = viewModel,
                     roomName = roomName,
-                    onBack = { openRoomId = null },
-                    onOpenMembers = { subScreen = RoomSubScreen.Members },
-                    onOpenInvite = { subScreen = RoomSubScreen.Invite },
-                    onOpenVoucherRedeem = { subScreen = RoomSubScreen.Voucher },
+                    onBack = { navController.popBackStack() },
+                    onOpenMembers = { navController.navigate(Route.Members(route.roomIdB32)) },
+                    onOpenInvite = { navController.navigate(Route.Invite(route.roomIdB32)) },
+                    onOpenVoucherRedeem = { navController.navigate(Route.VoucherRedeem(route.roomIdB32)) },
                 )
             }
+            composable<Route.Members> { backStackEntry ->
+                val route: Route.Members = backStackEntry.toRoute()
+                val roomId = remember(route.roomIdB32) { Base32.decode(route.roomIdB32) ?: ByteArray(0) }
+                val viewModel: MembersViewModel = viewModel(
+                    factory = viewModelFactory { initializer { MembersViewModel(roomId, container.session!!.userIdentity.userKey, gateway) } },
+                )
+                MembersScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            }
+            composable<Route.Invite> { backStackEntry ->
+                val route: Route.Invite = backStackEntry.toRoute()
+                val roomId = remember(route.roomIdB32) { Base32.decode(route.roomIdB32) ?: ByteArray(0) }
+                val viewModel: InviteViewModel = viewModel(factory = viewModelFactory { initializer { InviteViewModel(roomId, gateway) } })
+                InviteScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            }
+            composable<Route.VoucherRedeem> { backStackEntry ->
+                val route: Route.VoucherRedeem = backStackEntry.toRoute()
+                val roomId = remember(route.roomIdB32) { Base32.decode(route.roomIdB32) ?: ByteArray(0) }
+                val viewModel: VoucherRedeemViewModel = viewModel(factory = viewModelFactory { initializer { VoucherRedeemViewModel(roomId, gateway) } })
+                VoucherRedeemScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+            }
+            composable<Route.Join> { backStackEntry ->
+                val route: Route.Join = backStackEntry.toRoute()
+                val link = remember(route.linkUri) { gateway.parseInviteLink(route.linkUri) }
+                if (link == null) {
+                    // Malformed/stale link somehow reached this route - nothing to show, and
+                    // staying here would strand the user on a blank screen with only a back
+                    // gesture to escape; pop immediately back to whatever's underneath (RoomsList).
+                    LaunchedEffect(Unit) { navController.popBackStack() }
+                } else {
+                    val joinViewModel: JoinViewModel = viewModel(factory = viewModelFactory { initializer { JoinViewModel(gateway) } })
+                    LaunchedEffect(link) { joinViewModel.openWithLink(link) }
+                    JoinScreen(
+                        viewModel = joinViewModel,
+                        onJoined = { navController.popBackStack() },
+                        onCancelled = { navController.popBackStack() },
+                    )
+                }
+            }
+        }
+
+        clipboardSuggestion?.let { suggestion ->
+            ClipboardInviteBanner(
+                onOpen = { navController.navigateToJoin(suggestion); clipboardSuggestion = null },
+                onDismiss = {
+                    dismissedClipboardText = clipboardManager.getText()?.text
+                    clipboardSuggestion = null
+                },
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+        }
+        // Mutually exclusive: a stuck outbox is the more urgent, currently-active problem,
+        // so it wins this one shared banner slot over the (purely advisory) "install ntfy" hint.
+        // bottom = 88.dp (not 16.dp) clears a bottom-end FAB's own footprint - RoomsListScreen/
+        // RoomScreen both place one there, and this Box has no visibility into that Scaffold's
+        // own layout to avoid it automatically (found on a real device: the plain 16.dp padding
+        // let the banner's second line render directly under the FAB).
+        val bannerModifier = Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 88.dp)
+        when {
+            outboxCount > 0 -> Text(
+                text = stringResource(R.string.outbox_pending_hint, outboxCount),
+                modifier = bannerModifier.testTag("outboxBanner"),
+            )
+            showInstallNtfyHint -> Text(
+                text = stringResource(R.string.push_install_ntfy_hint),
+                modifier = bannerModifier,
+            )
         }
     }
 }
