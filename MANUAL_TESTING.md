@@ -251,10 +251,19 @@ NavHost-level routing itself (one real screen popping to the one behind it) need
   `SyncAllRoomsWorker`-posted notifications still just open the app at the rooms list (a
   pre-existing, documented M4b scope cut, see `Route.kt`'s comment on the `Join` route); this task
   didn't touch that path.
-- **Predictive back animations**: only the manifest flag
-  (`android:enableOnBackInvokedCallback="true"`) has landed - no custom transition/shared-element
-  animations were added, so screen changes use `NavHost`'s own default animation. Not yet
-  reviewed against Material 3's predictive-back motion guidance.
+- **Predictive back animations**: confirmed live on-device (a slow partial edge-swipe, screenshot
+  mid-gesture) - the system's predictive-back preview (the circular back-chevron indicator,
+  content tracking the swipe) renders correctly during a Room -> Rooms-list transition, and the
+  gesture commits cleanly to the rooms list on release, no crash. Per
+  [Android's predictive-back setup guide](https://developer.android.com/develop/ui/compose/system/predictive-back-setup),
+  the default crossfade needs only `navigation-compose` 2.8.0+ (this app is on 2.10.2) and no app
+  code intercepting back via the deprecated `Activity.onBackPressed()`/raw key-event path - this
+  app never did either, even before this task, and every `BackHandler` added by this fix uses the
+  modern dispatcher-based API, which is explicitly compatible. No custom
+  `popEnterTransition`/`popExitTransition` were added - screen changes use `NavHost`'s own default
+  crossfade, which is what was verified here. Not separately reviewed against Material 3's
+  broader predictive-back motion guidance (e.g. shared-element continuity) - out of scope for a
+  bug-fix-sized task.
 - **Dialogs + keyboard close first**: confirmed with the "Create a room" dialog (has a focused,
   IME-visible text field): first back closes only the keyboard, dialog stays open with the field
   still empty/focused; second back closes the dialog, landing cleanly on the rooms list - all via
