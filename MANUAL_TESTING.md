@@ -141,3 +141,19 @@ independently; a device offline at cold start recovers both on the next cold sta
    screen shows "This room has reached its invite limit. Ask an admin to boost it."
 8. Approving a pending member into a full room should show the same friendly `room_full` copy on
    the Members screen's action-error dialog.
+
+## Item 9: Play flavor Install Referrer
+
+Needs a real Play Console listing with a referrer-tagged install link, or
+`adb shell am broadcast -a com.android.vending.INSTALL_REFERRER --es "referrer" "link=<url-encoded invite link>" <applicationId>` right after a fresh `playDebug` install (before first launch) to simulate one locally.
+
+1. Install `playDebug` fresh (uninstall first - the referrer is only readable meaningfully on a
+   genuinely new install) with a referrer set as above.
+2. Complete onboarding; confirm the Join confirmation screen appears automatically on first
+   launch with the room name from the invite, with no App Link or clipboard involved.
+3. Repeat the same check on `fossDebug`; confirm nothing happens (no crash, no join prompt) -
+   `InstallReferrerChecker.referrerUrl` always returns `null` there, and `com.android.installreferrer`
+   never appears on `foss`'s classpath (CI's own `fossRelease` GMS-free check covers this).
+4. Confirm an App Link or clipboard-pasted invite opened at the same time as a referrer still
+   takes priority (`joinLink != null` short-circuits the referrer check) - the referrer path
+   never overrides an already-active join flow.

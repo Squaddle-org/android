@@ -89,6 +89,18 @@ public class MainActivity : FragmentActivity() {
     }
 }
 
+/** `link=<url-encoded invite link>` convention for a Play referrer string that isn't itself a
+ * bare invite link (some install flows append it as a query-string-shaped param rather than the
+ * raw link) - `null` if no such param is present. Never throws on a malformed encoding. */
+internal fun extractLinkParam(referrer: String): String? {
+    val match = Regex("(?:^|[&?])link=([^&]+)").find(referrer) ?: return null
+    return try {
+        java.net.URLDecoder.decode(match.groupValues[1], "UTF-8")
+    } catch (e: Exception) {
+        null
+    }
+}
+
 private sealed interface StartupState {
     data object Loading : StartupState
     data object NeedsOnboarding : StartupState
@@ -181,6 +193,17 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
             gateway.parseInviteLink(text)?.let { joinLink = it }
             pendingDeepLink.value = null
         }
+    }
+
+    // Play flavor's deferred deep link (android/CLAUDE.md M4b item 9) - a second source feeding
+    // the exact same join-flow entry point as the clipboard/App-Link checks, not new join logic.
+    // `InstallReferrerChecker` is the `foss`-flavor-always-null version unless this is a `play`
+    // build (see that class's own two flavor-specific source files).
+    LaunchedEffect(Unit) {
+        val referrer = org.squaddle.app.referrer.InstallReferrerChecker().referrerUrl(context) ?: return@LaunchedEffect
+        if (joinLink != null) return@LaunchedEffect
+        val link = gateway.parseInviteLink(referrer) ?: extractLinkParam(referrer)?.let { gateway.parseInviteLink(it) }
+        link?.let { joinLink = it }
     }
 
     // Clipboard fallback (ARCHITECTURE.md): checked once per cold start on resume, never polled
