@@ -143,6 +143,14 @@ dependencies {
     implementation(libs.work.runtime.ktx)
     implementation(libs.unifiedpush.connector)
     implementation(libs.biometric)
+    // androidx.biometric:1.1.0 transitively pulls androidx.fragment:1.2.5 (2020-era) - badly
+    // skewed against activity-compose's 1.13.0, which crashes MainActivity (now a
+    // FragmentActivity, needed for BiometricPrompt) the moment anything calls
+    // ActivityResultLauncher.launch(): "IllegalArgumentException: Can only use lower 16 bits for
+    // requestCode" - FragmentActivity's own permission-request validation rejects request codes
+    // ComponentActivity's modern ActivityResultRegistry generates. Pinning a current fragment-ktx
+    // here overrides the stale transitive one (Gradle's default highest-version-wins).
+    implementation(libs.fragment.ktx)
 
     // android/CLAUDE.md: play flavor gets Play Billing (M5b, not yet added) - Install Referrer
     // (item 9, M4b) lands now since it needs no billing setup, just the flavor-specific

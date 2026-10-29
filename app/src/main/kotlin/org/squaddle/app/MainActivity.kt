@@ -267,14 +267,19 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
             }
             // Mutually exclusive: a stuck outbox is the more urgent, currently-active problem,
             // so it wins this one shared banner slot over the (purely advisory) "install ntfy" hint.
+            // bottom = 88.dp (not 16.dp) clears a bottom-end FAB's own footprint - RoomsListScreen/
+            // RoomScreen both place one there, and this Box has no visibility into that Scaffold's
+            // own layout to avoid it automatically (found on a real device: the plain 16.dp padding
+            // let the banner's second line render directly under the FAB).
+            val bannerModifier = Modifier.Companion.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 88.dp)
             when {
                 outboxCount > 0 -> Text(
                     text = stringResource(R.string.outbox_pending_hint, outboxCount),
-                    modifier = Modifier.Companion.align(Alignment.BottomCenter).padding(16.dp).testTag("outboxBanner"),
+                    modifier = bannerModifier.testTag("outboxBanner"),
                 )
                 showInstallNtfyHint -> Text(
                     text = stringResource(R.string.push_install_ntfy_hint),
-                    modifier = Modifier.Companion.align(Alignment.BottomCenter).padding(16.dp),
+                    modifier = bannerModifier,
                 )
             }
         }
