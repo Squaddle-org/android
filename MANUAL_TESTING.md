@@ -230,10 +230,11 @@ NavHost-level routing itself (one real screen popping to the one behind it) need
   com.android.internal.systemui.navbar.gestural`, (3) tapping the on-screen ◁ icon after `cmd
   overlay enable com.android.internal.systemui.navbar.threebutton`. All three land on the rooms
   list with no crash (`adb logcat -d | grep -c FATAL` stayed `0` throughout).
-- **Invite/Settings/Developer settings → previous screen**: implemented the same way (plain
-  `popBackStack()` in the `NavHost`) as Members above, which IS on-device verified; these three
-  specifically were not separately re-walked on the emulator (same code path, not expected to
-  differ) - worth a quick pass before a release build.
+- **Settings → Rooms list** and **Developer settings → Rooms list**: both confirmed on-device
+  (`KEYCODE_BACK`), same `popBackStack()` path as Members above.
+- **Invite → previous screen**: confirmed via the Compose UI test suite (`BackNavigationTest.kt`:
+  dirty asks to discard, clean leaves immediately) rather than re-walked on the emulator; not
+  expected to differ from the on-device-verified Members/Settings/Developer-settings path.
 - **Root (rooms list) back exits the app**: default `NavHost` behavior (nothing left to pop) -
   not re-verified in this pass since it was already exercised earlier in the session (plain
   `KEYCODE_BACK` from the empty rooms list backgrounds the app, as it did before this rewrite).
