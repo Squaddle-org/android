@@ -59,7 +59,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.squaddle.app.R
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -90,7 +92,7 @@ public fun RoomScreen(
                         Text(roomName)
                         state.tier?.let { tier ->
                             Text(
-                                tier.replaceFirstChar { it.uppercase() },
+                                tierLabel(tier),
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.testTag("roomTierBadge"),
                             )
@@ -98,21 +100,21 @@ public fun RoomScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back)) }
                 },
                 actions = {
                     IconButton(onClick = viewModel::toggleMute) {
                         if (state.isMuted) {
-                            Icon(Icons.Filled.NotificationsOff, contentDescription = "Unmute notifications")
+                            Icon(Icons.Filled.NotificationsOff, contentDescription = stringResource(R.string.room_unmute))
                         } else {
-                            Icon(Icons.Filled.Notifications, contentDescription = "Mute notifications")
+                            Icon(Icons.Filled.Notifications, contentDescription = stringResource(R.string.room_mute))
                         }
                     }
                     IconButton(onClick = onOpenVoucherRedeem, modifier = Modifier.testTag("openVoucherRedeemButton")) {
-                        Icon(Icons.Filled.CardGiftcard, contentDescription = "Redeem voucher")
+                        Icon(Icons.Filled.CardGiftcard, contentDescription = stringResource(R.string.room_redeem_voucher))
                     }
-                    IconButton(onClick = onOpenMembers) { Icon(Icons.Filled.People, contentDescription = "Members") }
-                    IconButton(onClick = onOpenInvite) { Icon(Icons.Filled.MailOutline, contentDescription = "Invite") }
+                    IconButton(onClick = onOpenMembers) { Icon(Icons.Filled.People, contentDescription = stringResource(R.string.members_title)) }
+                    IconButton(onClick = onOpenInvite) { Icon(Icons.Filled.MailOutline, contentDescription = stringResource(R.string.invite_title)) }
                 },
             )
         },
@@ -120,11 +122,11 @@ public fun RoomScreen(
             if (state.selectedIdeaId == null) {
                 when (state.selectedTab) {
                     RoomTab.IDEAS -> FloatingActionButton(onClick = { showCreateIdeaDialog = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = "New idea")
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.room_new_idea))
                     }
                     RoomTab.EVENTS -> if (state.canCreateEvent) {
                         FloatingActionButton(onClick = { showCreateEventDialog = true }) {
-                            Icon(Icons.Filled.Add, contentDescription = "New event")
+                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.room_new_event))
                         }
                     }
                 }
@@ -137,12 +139,12 @@ public fun RoomScreen(
                     Tab(
                         selected = state.selectedTab == RoomTab.IDEAS,
                         onClick = { viewModel.selectTab(RoomTab.IDEAS) },
-                        text = { Text("Ideas") },
+                        text = { Text(stringResource(R.string.room_tab_ideas)) },
                     )
                     Tab(
                         selected = state.selectedTab == RoomTab.EVENTS,
                         onClick = { viewModel.selectTab(RoomTab.EVENTS) },
-                        text = { Text("Events") },
+                        text = { Text(stringResource(R.string.room_tab_events)) },
                     )
                 }
             }
@@ -170,12 +172,13 @@ public fun RoomScreen(
                 state.selectedTab == RoomTab.EVENTS -> if (state.events.isEmpty()) {
                     EmptyEventsState()
                 } else {
+                    val shareEventLabel = stringResource(R.string.room_share_event)
                     EventsList(
                         events = state.events,
                         onRsvp = { eventId, value -> viewModel.rsvp(eventId, value) },
                         onCancel = { eventId -> viewModel.cancelEvent(eventId) },
                         onAddToCalendar = { event -> context.startActivity(calendarInsertIntent(event)) },
-                        onShareIcs = { event -> context.startActivity(Intent.createChooser(shareIcsIntent(context, event), "Share event")) },
+                        onShareIcs = { event -> context.startActivity(Intent.createChooser(shareIcsIntent(context, event), shareEventLabel)) },
                     )
                 }
                 state.ideas.isEmpty() -> EmptyIdeasState()
@@ -190,7 +193,7 @@ public fun RoomScreen(
 
     if (showCreateIdeaDialog) {
         IdeaEditDialog(
-            title = "New idea",
+            title = stringResource(R.string.room_new_idea_title),
             initialTitle = "",
             initialDesc = "",
             onDismiss = { showCreateIdeaDialog = false },
@@ -224,12 +227,23 @@ public fun RoomScreen(
     }
 }
 
+/** PROTOCOL.md §8.1's `"free"|"boosted"|"unlimited"|"custom"` - the first three get real
+ * localized labels; `custom` (a relay-specific tier name, never defined by the protocol itself)
+ * falls back to just capitalizing whatever the relay sent, same as before this pass. */
+@Composable
+private fun tierLabel(tier: String): String = when (tier) {
+    "free" -> stringResource(R.string.tier_free)
+    "boosted" -> stringResource(R.string.tier_boosted)
+    "unlimited" -> stringResource(R.string.tier_unlimited)
+    else -> tier.replaceFirstChar { it.uppercase() }
+}
+
 @Composable
 private fun EmptyIdeasState(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("No ideas yet", style = MaterialTheme.typography.titleLarge)
-            Text("Tap + to suggest one.", modifier = Modifier.padding(top = 8.dp))
+            Text(stringResource(R.string.room_no_ideas_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.room_no_ideas_hint), modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
@@ -270,7 +284,7 @@ private fun VoteControl(score: Int, myVote: Int, onVote: (Int) -> Unit) {
         IconButton(onClick = { onVote(1) }, modifier = Modifier.testTag("voteUp")) {
             Icon(
                 Icons.Filled.KeyboardArrowUp,
-                contentDescription = "Upvote",
+                contentDescription = stringResource(R.string.room_upvote),
                 tint = if (myVote == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -278,7 +292,7 @@ private fun VoteControl(score: Int, myVote: Int, onVote: (Int) -> Unit) {
         IconButton(onClick = { onVote(-1) }, modifier = Modifier.testTag("voteDown")) {
             Icon(
                 Icons.Filled.KeyboardArrowDown,
-                contentDescription = "Downvote",
+                contentDescription = stringResource(R.string.room_downvote),
                 tint = if (myVote == -1) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -305,11 +319,11 @@ private fun IdeaDetail(
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to ideas") }
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.room_back_to_ideas)) }
             Text(idea.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
             if (idea.canEditOrDelete) {
-                IconButton(onClick = { showEditDialog = true }) { Icon(Icons.Filled.Edit, contentDescription = "Edit idea") }
-                IconButton(onClick = { showDeleteConfirm = true }) { Icon(Icons.Filled.Delete, contentDescription = "Delete idea") }
+                IconButton(onClick = { showEditDialog = true }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.room_edit_idea)) }
+                IconButton(onClick = { showDeleteConfirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.room_delete_idea)) }
             }
         }
         idea.desc?.let { Text(it, modifier = Modifier.padding(top = 8.dp)) }
@@ -318,19 +332,19 @@ private fun IdeaDetail(
             if (canCreateEvent) {
                 TextButton(onClick = onConvertToEvent) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = null)
-                    Text("Make this an event", modifier = Modifier.padding(start = 4.dp))
+                    Text(stringResource(R.string.room_make_this_an_event), modifier = Modifier.padding(start = 4.dp))
                 }
             }
         }
 
-        Text("Comments", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+        Text(stringResource(R.string.room_comments), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(comments, key = { Base32.encode(it.id) }) { comment ->
                 Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(comment.text, modifier = Modifier.weight(1f))
                     if (comment.canDelete) {
                         IconButton(onClick = { onDeleteComment(comment.id) }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete comment")
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.room_delete_comment))
                         }
                     }
                 }
@@ -340,19 +354,19 @@ private fun IdeaDetail(
             OutlinedTextField(
                 value = commentText,
                 onValueChange = { commentText = it },
-                label = { Text("Add a comment") },
+                label = { Text(stringResource(R.string.room_add_comment_label)) },
                 modifier = Modifier.weight(1f).testTag("commentField"),
             )
             TextButton(
                 onClick = { onAddComment(commentText); commentText = "" },
                 enabled = commentText.isNotBlank(),
-            ) { Text("Post") }
+            ) { Text(stringResource(R.string.room_post_comment)) }
         }
     }
 
     if (showEditDialog) {
         IdeaEditDialog(
-            title = "Edit idea",
+            title = stringResource(R.string.room_edit_idea_title),
             initialTitle = idea.title,
             initialDesc = idea.desc.orEmpty(),
             onDismiss = { showEditDialog = false },
@@ -363,13 +377,13 @@ private fun IdeaDetail(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete this idea?") },
-            text = { Text("This can't be undone.") },
+            title = { Text(stringResource(R.string.room_delete_idea_confirm_title)) },
+            text = { Text(stringResource(R.string.room_delete_confirm_body)) },
             confirmButton = {
-                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("Delete") }
+                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text(stringResource(R.string.action_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteConfirm = false }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -387,22 +401,22 @@ private fun IdeaEditDialog(title: String, initialTitle: String, initialDesc: Str
                 OutlinedTextField(
                     value = ideaTitle,
                     onValueChange = { ideaTitle = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.room_title_label)) },
                     modifier = Modifier.fillMaxWidth().testTag("ideaTitleField"),
                 )
                 OutlinedTextField(
                     value = ideaDesc,
                     onValueChange = { ideaDesc = it },
-                    label = { Text("Description (optional)") },
+                    label = { Text(stringResource(R.string.room_description_optional_label)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp).testTag("ideaDescField"),
                 )
             }
         },
         confirmButton = {
-            Button(onClick = { onSave(ideaTitle, ideaDesc) }, enabled = ideaTitle.isNotBlank()) { Text("Save") }
+            Button(onClick = { onSave(ideaTitle, ideaDesc) }, enabled = ideaTitle.isNotBlank()) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -411,8 +425,8 @@ private fun IdeaEditDialog(title: String, initialTitle: String, initialDesc: Str
 private fun EmptyEventsState(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("No events yet", style = MaterialTheme.typography.titleLarge)
-            Text("Turn an idea into an event, or tap + to create one.", modifier = Modifier.padding(top = 8.dp))
+            Text(stringResource(R.string.room_no_events_title), style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.room_no_events_hint), modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
@@ -466,29 +480,29 @@ private fun EventRow(
                     Text(formatEventTime(event), style = MaterialTheme.typography.bodyMedium)
                     event.location?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
-                IconButton(onClick = onAddToCalendar) { Icon(Icons.Filled.CalendarMonth, contentDescription = "Add to calendar") }
-                IconButton(onClick = onShareIcs) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Share event") }
+                IconButton(onClick = onAddToCalendar) { Icon(Icons.Filled.CalendarMonth, contentDescription = stringResource(R.string.room_add_to_calendar)) }
+                IconButton(onClick = onShareIcs) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.room_share_event)) }
                 if (event.canCancel) {
-                    IconButton(onClick = { showCancelConfirm = true }) { Icon(Icons.Filled.Delete, contentDescription = "Cancel event") }
+                    IconButton(onClick = { showCancelConfirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.room_cancel_event)) }
                 }
             }
             Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 FilterChip(
                     selected = event.myRsvp == "yes",
                     onClick = { onRsvp("yes") },
-                    label = { Text("Yes (${event.yesCount})") },
+                    label = { Text(stringResource(R.string.room_rsvp_yes, event.yesCount)) },
                     modifier = Modifier.testTag("rsvpYes_${Base32.encode(event.id)}"),
                 )
                 FilterChip(
                     selected = event.myRsvp == "maybe",
                     onClick = { onRsvp("maybe") },
-                    label = { Text("Maybe (${event.maybeCount})") },
+                    label = { Text(stringResource(R.string.room_rsvp_maybe, event.maybeCount)) },
                     modifier = Modifier.padding(start = 8.dp),
                 )
                 FilterChip(
                     selected = event.myRsvp == "no",
                     onClick = { onRsvp("no") },
-                    label = { Text("No (${event.noCount})") },
+                    label = { Text(stringResource(R.string.room_rsvp_no, event.noCount)) },
                     modifier = Modifier.padding(start = 8.dp),
                 )
             }
@@ -498,13 +512,13 @@ private fun EventRow(
     if (showCancelConfirm) {
         AlertDialog(
             onDismissRequest = { showCancelConfirm = false },
-            title = { Text("Cancel this event?") },
-            text = { Text("This can't be undone.") },
+            title = { Text(stringResource(R.string.room_cancel_event_confirm_title)) },
+            text = { Text(stringResource(R.string.room_delete_confirm_body)) },
             confirmButton = {
-                TextButton(onClick = { showCancelConfirm = false; onCancel() }) { Text("Cancel event") }
+                TextButton(onClick = { showCancelConfirm = false; onCancel() }) { Text(stringResource(R.string.room_cancel_event)) }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelConfirm = false }) { Text("Keep it") }
+                TextButton(onClick = { showCancelConfirm = false }) { Text(stringResource(R.string.room_keep_it)) }
             },
         )
     }
@@ -534,23 +548,23 @@ private fun EventEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New event") },
+        title = { Text(stringResource(R.string.room_new_event_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.room_title_label)) },
                     modifier = Modifier.fillMaxWidth().testTag("eventTitleField"),
                 )
                 OutlinedTextField(
                     value = location,
                     onValueChange = { location = it },
-                    label = { Text("Location (optional)") },
+                    label = { Text(stringResource(R.string.room_location_optional_label)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
                 Row(modifier = Modifier.padding(top = 8.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("All day", modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.room_all_day), modifier = Modifier.weight(1f))
                     Switch(checked = allDay, onCheckedChange = { allDay = it })
                 }
                 Row(modifier = Modifier.padding(top = 8.dp)) {
@@ -569,10 +583,10 @@ private fun EventEditDialog(
                     onSave(title, startInstant.epochSecond, null, zone.id, location.ifBlank { null }, allDay)
                 },
                 enabled = title.isNotBlank(),
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 
@@ -586,9 +600,9 @@ private fun EventEditDialog(
                         date = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
                     }
                     showDatePicker = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
-            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) } },
         ) { DatePicker(state = state) }
     }
 
@@ -598,9 +612,9 @@ private fun EventEditDialog(
             onDismissRequest = { showTimePicker = false },
             text = { TimePicker(state = state) },
             confirmButton = {
-                TextButton(onClick = { time = LocalTime.of(state.hour, state.minute); showTimePicker = false }) { Text("OK") }
+                TextButton(onClick = { time = LocalTime.of(state.hour, state.minute); showTimePicker = false }) { Text(stringResource(R.string.action_ok)) }
             },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
 }

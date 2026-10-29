@@ -40,9 +40,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import kotlinx.coroutines.launch
+import org.squaddle.app.R
 import org.squaddle.app.backup.AutoBackupScheduler
 
 private const val BACKUP_MIME_TYPE = "application/octet-stream"
@@ -84,9 +86,9 @@ public fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back)) }
                 },
             )
         },
@@ -138,8 +140,8 @@ public fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
 
     pendingCreateBackupUri?.let { uriString ->
         PassphraseDialog(
-            title = "Protect this backup",
-            confirmLabel = "Save",
+            title = stringResource(R.string.settings_protect_backup_title),
+            confirmLabel = stringResource(R.string.action_save),
             onDismiss = { pendingCreateBackupUri = null },
             onConfirm = { passphrase ->
                 viewModel.createBackup(uriString, passphrase)
@@ -150,8 +152,8 @@ public fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
 
     pendingRestoreUri?.let { uriString ->
         PassphraseDialog(
-            title = "Enter the backup's passphrase",
-            confirmLabel = "Restore",
+            title = stringResource(R.string.settings_enter_backup_passphrase_title),
+            confirmLabel = stringResource(R.string.settings_restore),
             onDismiss = { pendingRestoreUri = null },
             onConfirm = { passphrase ->
                 viewModel.restoreBackup(uriString, passphrase)
@@ -162,8 +164,8 @@ public fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
 
     pendingAutoBackupUri?.let { uriString ->
         PassphraseDialog(
-            title = "Choose a passphrase for automatic backups",
-            confirmLabel = "Enable",
+            title = stringResource(R.string.settings_choose_auto_backup_passphrase_title),
+            confirmLabel = stringResource(R.string.settings_enable),
             onDismiss = { pendingAutoBackupUri = null },
             onConfirm = { passphrase ->
                 viewModel.setAutoBackup(enabled = true, uriString = uriString, passphrase = passphrase, intervalHours = state.autoBackupIntervalHours)
@@ -176,18 +178,18 @@ public fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
 @Composable
 private fun SeedSection(revealed: Boolean, mnemonic: List<String>, onRevealRequested: () -> Unit, onHide: () -> Unit) {
     Column(modifier = Modifier.padding(16.dp)) {
-        Text("Recovery seed", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_recovery_seed), style = MaterialTheme.typography.titleMedium)
         Text(
-            "Anyone with these 24 words can fully recover your account - never share them.",
+            stringResource(R.string.settings_seed_warning),
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
         )
         if (revealed) {
             LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = Modifier.testTag("seedWordsGrid")) {
                 items(mnemonic) { word -> Text(word, modifier = Modifier.padding(4.dp)) }
             }
-            TextButton(onClick = onHide, modifier = Modifier.padding(top = 8.dp)) { Text("Hide") }
+            TextButton(onClick = onHide, modifier = Modifier.padding(top = 8.dp)) { Text(stringResource(R.string.settings_hide)) }
         } else {
-            Button(onClick = onRevealRequested, modifier = Modifier.testTag("revealSeedButton")) { Text("Reveal seed") }
+            Button(onClick = onRevealRequested, modifier = Modifier.testTag("revealSeedButton")) { Text(stringResource(R.string.settings_reveal_seed)) }
         }
     }
 }
@@ -195,16 +197,16 @@ private fun SeedSection(revealed: Boolean, mnemonic: List<String>, onRevealReque
 @Composable
 private fun BackupSection(inProgress: Boolean, resultMessage: String?, onCreateBackup: () -> Unit, onDismissResult: () -> Unit) {
     Column(modifier = Modifier.padding(16.dp)) {
-        Text("Backup", style = MaterialTheme.typography.titleMedium)
-        Text("Save an encrypted copy of your seed and room list to Drive, Nextcloud, or local storage.", modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-        Button(onClick = onCreateBackup, enabled = !inProgress, modifier = Modifier.testTag("createBackupButton")) { Text("Create backup") }
+        Text(stringResource(R.string.settings_backup), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_backup_explainer), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        Button(onClick = onCreateBackup, enabled = !inProgress, modifier = Modifier.testTag("createBackupButton")) { Text(stringResource(R.string.settings_create_backup)) }
     }
     if (resultMessage != null) {
         AlertDialog(
             onDismissRequest = onDismissResult,
-            title = { Text("Backup") },
+            title = { Text(stringResource(R.string.settings_backup)) },
             text = { Text(resultMessage) },
-            confirmButton = { TextButton(onClick = onDismissResult) { Text("OK") } },
+            confirmButton = { TextButton(onClick = onDismissResult) { Text(stringResource(R.string.action_ok)) } },
         )
     }
 }
@@ -212,16 +214,18 @@ private fun BackupSection(inProgress: Boolean, resultMessage: String?, onCreateB
 @Composable
 private fun RestoreSection(inProgress: Boolean, resultMessage: String?, onRestoreFromFile: () -> Unit, onDismissResult: () -> Unit) {
     Column(modifier = Modifier.padding(16.dp)) {
-        Text("Restore", style = MaterialTheme.typography.titleMedium)
-        Text("Import the room list from a backup file for this same account.", modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-        Button(onClick = onRestoreFromFile, enabled = !inProgress, modifier = Modifier.testTag("restoreBackupButton")) { Text("Restore from backup") }
+        Text(stringResource(R.string.settings_restore), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_restore_explainer), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        Button(onClick = onRestoreFromFile, enabled = !inProgress, modifier = Modifier.testTag("restoreBackupButton")) {
+            Text(stringResource(R.string.settings_restore_from_backup))
+        }
     }
     if (resultMessage != null) {
         AlertDialog(
             onDismissRequest = onDismissResult,
-            title = { Text("Restore") },
+            title = { Text(stringResource(R.string.settings_restore)) },
             text = { Text(resultMessage) },
-            confirmButton = { TextButton(onClick = onDismissResult) { Text("OK") } },
+            confirmButton = { TextButton(onClick = onDismissResult) { Text(stringResource(R.string.action_ok)) } },
         )
     }
 }
@@ -230,7 +234,7 @@ private fun RestoreSection(inProgress: Boolean, resultMessage: String?, onRestor
 private fun AutoBackupSection(enabled: Boolean, intervalHours: Int, onEnable: () -> Unit, onDisable: () -> Unit, onIntervalChanged: (Int) -> Unit) {
     Column(modifier = Modifier.padding(16.dp)) {
         Row(modifier = Modifier.fillMaxWidth()) {
-            Text("Automatic backups", style = MaterialTheme.typography.titleMedium, modifier = Modifier.Companion.weight(1f))
+            Text(stringResource(R.string.settings_automatic_backups), style = MaterialTheme.typography.titleMedium, modifier = Modifier.Companion.weight(1f))
             Switch(checked = enabled, onCheckedChange = { if (it) onEnable() else onDisable() }, modifier = Modifier.testTag("autoBackupSwitch"))
         }
         if (enabled) {
@@ -241,7 +245,7 @@ private fun AutoBackupSection(enabled: Boolean, intervalHours: Int, onEnable: ()
                     intervalText = text
                     text.toIntOrNull()?.takeIf { it > 0 }?.let(onIntervalChanged)
                 },
-                label = { Text("Interval (hours)") },
+                label = { Text(stringResource(R.string.settings_interval_hours_label)) },
                 modifier = Modifier.padding(top = 8.dp).testTag("autoBackupIntervalField"),
             )
         }
@@ -258,7 +262,7 @@ private fun PassphraseDialog(title: String, confirmLabel: String, onDismiss: () 
             OutlinedTextField(
                 value = passphrase,
                 onValueChange = { passphrase = it },
-                label = { Text("Passphrase") },
+                label = { Text(stringResource(R.string.settings_passphrase_label)) },
                 modifier = Modifier.fillMaxWidth().testTag("passphraseField"),
             )
         },
@@ -266,7 +270,7 @@ private fun PassphraseDialog(title: String, confirmLabel: String, onDismiss: () 
             Button(onClick = { onConfirm(passphrase) }, enabled = passphrase.isNotBlank()) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

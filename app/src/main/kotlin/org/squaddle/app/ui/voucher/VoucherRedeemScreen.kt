@@ -23,7 +23,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.squaddle.app.R
+
+/** Same PROTOCOL.md §8.1 tier names as `RoomScreen.kt`'s own `tierLabel` - kept as its own small
+ * copy here rather than a shared cross-package function, not worth the coupling for four lines. */
+@Composable
+private fun voucherTierLabel(tier: String): String = when (tier) {
+    "free" -> stringResource(R.string.tier_free)
+    "boosted" -> stringResource(R.string.tier_boosted)
+    "unlimited" -> stringResource(R.string.tier_unlimited)
+    else -> tier.replaceFirstChar { it.uppercase() }
+}
 
 @Composable
 public fun VoucherRedeemScreen(viewModel: VoucherRedeemViewModel, onBack: () -> Unit) {
@@ -32,9 +44,9 @@ public fun VoucherRedeemScreen(viewModel: VoucherRedeemViewModel, onBack: () -> 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Redeem voucher") },
+                title = { Text(stringResource(R.string.voucher_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back)) }
                 },
             )
         },
@@ -42,21 +54,21 @@ public fun VoucherRedeemScreen(viewModel: VoucherRedeemViewModel, onBack: () -> 
         Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
             val resultTier = state.resultTier
             if (resultTier != null) {
-                Text("This room is now tier: $resultTier", style = MaterialTheme.typography.titleMedium)
-                Button(onClick = onBack, modifier = Modifier.padding(top = 16.dp)) { Text("Done") }
+                Text(stringResource(R.string.voucher_new_tier, voucherTierLabel(resultTier)), style = MaterialTheme.typography.titleMedium)
+                Button(onClick = onBack, modifier = Modifier.padding(top = 16.dp)) { Text(stringResource(R.string.action_done)) }
             } else {
-                Text("Enter a voucher code to boost this room.")
+                Text(stringResource(R.string.voucher_explainer))
                 OutlinedTextField(
                     value = state.code,
                     onValueChange = viewModel::setCode,
-                    label = { Text("Voucher code") },
+                    label = { Text(stringResource(R.string.voucher_code_label)) },
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp).testTag("voucherCodeField"),
                 )
                 Button(
                     onClick = viewModel::redeem,
                     enabled = !state.isRedeeming && state.code.isNotBlank(),
                     modifier = Modifier.padding(top = 16.dp).testTag("redeemVoucherButton"),
-                ) { Text("Redeem") }
+                ) { Text(stringResource(R.string.voucher_redeem)) }
             }
         }
     }
@@ -64,9 +76,9 @@ public fun VoucherRedeemScreen(viewModel: VoucherRedeemViewModel, onBack: () -> 
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            title = { Text("Couldn't redeem voucher") },
+            title = { Text(stringResource(R.string.voucher_error_title)) },
             text = { Text(error) },
-            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("OK") } },
+            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } },
         )
     }
 }

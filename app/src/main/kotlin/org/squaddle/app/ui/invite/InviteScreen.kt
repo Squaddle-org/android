@@ -31,14 +31,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.squaddle.app.R
 import org.squaddle.app.data.InviteLink
 
-private val EXPIRY_OPTIONS: List<Pair<String, Int?>> = listOf(
-    "Never" to null,
-    "1 day" to 1,
-    "7 days" to 7,
-    "30 days" to 30,
+/** String resource id (not the resolved text - that needs a `@Composable` context, see
+ * [ExpiryPicker]) paired with the day count that option sets; `null` = never expires. */
+private val EXPIRY_OPTIONS: List<Pair<Int, Int?>> = listOf(
+    R.string.invite_expiry_never to null,
+    R.string.invite_expiry_1_day to 1,
+    R.string.invite_expiry_7_days to 7,
+    R.string.invite_expiry_30_days to 30,
 )
 
 @Composable
@@ -49,7 +53,7 @@ public fun InviteScreen(viewModel: InviteViewModel, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Invite") },
+                title = { Text(stringResource(R.string.invite_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -79,8 +83,8 @@ public fun InviteScreen(viewModel: InviteViewModel, onBack: () -> Unit) {
     state.error?.let { error ->
         AlertDialog(
             onDismissRequest = viewModel::dismissError,
-            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text("OK") } },
-            title = { Text("Couldn't create invite") },
+            confirmButton = { TextButton(onClick = viewModel::dismissError) { Text(stringResource(R.string.action_ok)) } },
+            title = { Text(stringResource(R.string.invite_error_title)) },
             text = { Text(error) },
         )
     }
@@ -98,8 +102,8 @@ private fun InviteFormContent(
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Require approval", style = MaterialTheme.typography.titleMedium)
-                Text("New joiners wait for an admin to approve them.", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.invite_require_approval), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.invite_require_approval_explainer), style = MaterialTheme.typography.bodyMedium)
             }
             Switch(
                 checked = state.requiresApproval,
@@ -117,7 +121,7 @@ private fun InviteFormContent(
                 maxUsesText = text
                 onMaxUsesChange(text.toIntOrNull())
             },
-            label = { Text("Max uses (optional)") },
+            label = { Text(stringResource(R.string.invite_max_uses_label)) },
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp).testTag("maxUsesField"),
         )
 
@@ -125,7 +129,7 @@ private fun InviteFormContent(
             CircularProgressIndicator(modifier = Modifier.padding(top = 24.dp))
         } else {
             Button(onClick = onCreate, modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
-                Text("Create invite")
+                Text(stringResource(R.string.invite_create))
             }
         }
     }
@@ -134,18 +138,18 @@ private fun InviteFormContent(
 @Composable
 private fun ExpiryPicker(selectedDays: Int?, onSelect: (Int?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val label = EXPIRY_OPTIONS.firstOrNull { it.second == selectedDays }?.first ?: "Never"
+    val labelResId = EXPIRY_OPTIONS.firstOrNull { it.second == selectedDays }?.first ?: R.string.invite_expiry_never
 
     Column(modifier = Modifier.padding(top = 16.dp)) {
-        Text("Expires", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(R.string.invite_expires), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         androidx.compose.foundation.layout.Box {
             TextButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth().testTag("expiryField")) {
-                Text(label, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
+                Text(stringResource(labelResId), modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Start)
             }
             androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                for ((optionLabel, days) in EXPIRY_OPTIONS) {
+                for ((optionLabelResId, days) in EXPIRY_OPTIONS) {
                     androidx.compose.material3.DropdownMenuItem(
-                        text = { Text(optionLabel) },
+                        text = { Text(stringResource(optionLabelResId)) },
                         onClick = { onSelect(days); expanded = false },
                     )
                 }
@@ -157,16 +161,16 @@ private fun ExpiryPicker(selectedDays: Int?, onSelect: (Int?) -> Unit) {
 @Composable
 private fun CreatedInviteContent(link: InviteLink, modifier: Modifier = Modifier, onShare: () -> Unit, onMakeAnother: () -> Unit) {
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-        Text("Invite ready", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.invite_ready_title), style = MaterialTheme.typography.headlineSmall)
         Text(
-            "Share this link - whoever opens it can join the room.",
+            stringResource(R.string.invite_ready_explainer),
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
         Button(onClick = onShare, modifier = Modifier.fillMaxWidth().testTag("shareInviteButton")) {
-            Text("Share invite link")
+            Text(stringResource(R.string.invite_share))
         }
         TextButton(onClick = onMakeAnother, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            Text("Create another invite")
+            Text(stringResource(R.string.invite_create_another))
         }
     }
 }
@@ -176,5 +180,5 @@ private fun shareInviteLink(context: android.content.Context, link: InviteLink) 
         type = "text/plain"
         putExtra(android.content.Intent.EXTRA_TEXT, link.toUriString())
     }
-    context.startActivity(android.content.Intent.createChooser(sendIntent, "Share invite link"))
+    context.startActivity(android.content.Intent.createChooser(sendIntent, context.getString(R.string.invite_share)))
 }

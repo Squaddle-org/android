@@ -23,7 +23,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.squaddle.app.R
 
 /** `onFinished` fires once [OnboardingUiState.Done] is reached - the caller swaps to the rest of
  * the app (rooms list), not this screen. */
@@ -70,20 +72,22 @@ public fun OnboardingScreen(viewModel: OnboardingViewModel, onFinished: () -> Un
 
 @Composable
 private fun ModeSelectStep(onCreate: () -> Unit, onRestore: () -> Unit) {
-    Text("Squaddle", style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
     Text(
-        "No accounts, no passwords. Your identity is a seed phrase only you hold.",
+        stringResource(R.string.onboarding_tagline),
         modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
     )
-    Button(onClick = onCreate, modifier = Modifier.fillMaxWidth()) { Text("Create a new identity") }
-    TextButton(onClick = onRestore, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("I already have a seed phrase") }
+    Button(onClick = onCreate, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.onboarding_create_identity)) }
+    TextButton(onClick = onRestore, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Text(stringResource(R.string.onboarding_have_seed))
+    }
 }
 
 @Composable
 private fun ShowSeedStep(words: List<String>, wroteItDown: Boolean, onToggle: () -> Unit, onContinue: () -> Unit) {
-    Text("Your recovery phrase", style = MaterialTheme.typography.headlineSmall)
+    Text(stringResource(R.string.onboarding_seed_title), style = MaterialTheme.typography.headlineSmall)
     Text(
-        "Write these 24 words down somewhere safe. Anyone with this phrase can access every room you're in.",
+        stringResource(R.string.onboarding_seed_warning),
         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
     )
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -106,43 +110,43 @@ private fun ShowSeedStep(words: List<String>, wroteItDown: Boolean, onToggle: ()
             .testTag("wroteItDownToggle"),
     ) {
         Checkbox(checked = wroteItDown, onCheckedChange = null)
-        Text("I wrote it down")
+        Text(stringResource(R.string.onboarding_wrote_it_down))
     }
     Button(onClick = onContinue, enabled = wroteItDown, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-        Text("Continue")
+        Text(stringResource(R.string.action_continue))
     }
 }
 
 @Composable
 private fun EnterSeedStep(input: String, error: String?, onInputChange: (String) -> Unit, onSubmit: () -> Unit, onBack: () -> Unit) {
-    Text("Enter your recovery phrase", style = MaterialTheme.typography.headlineSmall)
+    Text(stringResource(R.string.onboarding_restore_title), style = MaterialTheme.typography.headlineSmall)
     Text(
-        "This recovers your identity and rejoins every room on your default relay that you're still a member of. Rooms hosted on a different relay will need a fresh invite link.",
+        stringResource(R.string.onboarding_restore_explainer),
         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
     )
     OutlinedTextField(
         value = input,
         onValueChange = onInputChange,
-        label = { Text("24 words, separated by spaces") },
+        label = { Text(stringResource(R.string.onboarding_seed_input_label)) },
         isError = error != null,
         supportingText = error?.let { { Text(it) } },
         modifier = Modifier.fillMaxWidth(),
     )
-    Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text("Continue") }
-    TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back") }
+    Button(onClick = onSubmit, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) { Text(stringResource(R.string.action_continue)) }
+    TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_back)) }
 }
 
 @Composable
 private fun NameEntryStep(displayName: String, isRestore: Boolean, onNameChange: (String) -> Unit, onFinish: () -> Unit) {
-    Text("What should we call you?", style = MaterialTheme.typography.headlineSmall)
+    Text(stringResource(R.string.onboarding_name_title), style = MaterialTheme.typography.headlineSmall)
     Text(
-        "Your display name is shown to other room members - it's not part of your identity.",
+        stringResource(R.string.onboarding_name_explainer),
         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
     )
     OutlinedTextField(
         value = displayName,
         onValueChange = onNameChange,
-        label = { Text("Display name") },
+        label = { Text(stringResource(R.string.onboarding_display_name_label)) },
         modifier = Modifier.fillMaxWidth().testTag("displayNameField"),
     )
     Button(
@@ -150,6 +154,6 @@ private fun NameEntryStep(displayName: String, isRestore: Boolean, onNameChange:
         enabled = displayName.isNotBlank(),
         modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
     ) {
-        Text(if (isRestore) "Finish restoring" else "Finish")
+        Text(stringResource(if (isRestore) R.string.onboarding_finish_restoring else R.string.onboarding_finish))
     }
 }

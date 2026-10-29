@@ -2,6 +2,26 @@
 <resources>
     <string name="app_name">Squaddle</string>
 
+    <!-- Shared across screens - generic action labels. -->
+    <string name="action_continue">Continue</string>
+    <string name="action_back">Back</string>
+    <string name="action_join">Join</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_dismiss">Dismiss</string>
+    <string name="action_open">Open</string>
+    <string name="action_create">Create</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_save">Save</string>
+    <string name="action_done">Done</string>
+    <string name="default_room_name">Squaddle room</string>
+
+    <!-- PROTOCOL.md §8.1 tier names, shown on the room screen's tier badge and the voucher
+         redemption screen. -->
+    <string name="tier_free">Free</string>
+    <string name="tier_boosted">Boosted</string>
+    <string name="tier_unlimited">Unlimited</string>
+
     <!-- Notification channels (push/NotificationChannels.kt) - user-visible in system settings. -->
     <string name="notification_channel_idea">New ideas</string>
     <string name="notification_channel_comment">New comments</string>
@@ -17,4 +37,135 @@
 
     <!-- MainActivity.kt's SignedInApp - shown only when PushRegistrar.noDistributorInstalled(). -->
     <string name="push_install_ntfy_hint">Install ntfy for instant updates - without it, Squaddle checks for new activity every few hours.</string>
+
+    <!-- ui/onboarding/OnboardingScreen.kt -->
+    <string name="onboarding_tagline">No accounts, no passwords. Your identity is a seed phrase only you hold.</string>
+    <string name="onboarding_create_identity">Create a new identity</string>
+    <string name="onboarding_have_seed">I already have a seed phrase</string>
+    <string name="onboarding_seed_title">Your recovery phrase</string>
+    <string name="onboarding_seed_warning">Write these 24 words down somewhere safe. Anyone with this phrase can access every room you\'re in.</string>
+    <string name="onboarding_wrote_it_down">I wrote it down</string>
+    <string name="onboarding_restore_title">Enter your recovery phrase</string>
+    <string name="onboarding_restore_explainer">This recovers your identity and rejoins every room on your default relay that you\'re still a member of. Rooms hosted on a different relay will need a fresh invite link.</string>
+    <string name="onboarding_seed_input_label">24 words, separated by spaces</string>
+    <string name="onboarding_name_title">What should we call you?</string>
+    <string name="onboarding_name_explainer">Your display name is shown to other room members - it\'s not part of your identity.</string>
+    <string name="onboarding_display_name_label">Display name</string>
+    <string name="onboarding_finish_restoring">Finish restoring</string>
+    <string name="onboarding_finish">Finish</string>
+
+    <!-- ui/join/JoinScreen.kt -->
+    <string name="join_confirm_title">Join this room?</string>
+    <string name="join_error_title">Couldn\'t open this invite</string>
+    <string name="join_clipboard_banner">Open invite from clipboard?</string>
+
+    <!-- ui/members/MembersScreen.kt -->
+    <string name="members_title">Members</string>
+    <string name="members_pending_approval">Pending approval</string>
+    <string name="members_action_failed_title">Action failed</string>
+    <string name="members_reject">Reject</string>
+    <string name="members_approve">Approve</string>
+    <string name="members_promote">Promote to admin</string>
+    <string name="members_demote">Demote to member</string>
+    <string name="members_transfer_ownership">Transfer ownership</string>
+    <string name="members_remove">Remove from room</string>
+    <string name="role_owner">Owner</string>
+    <string name="role_admin">Admin</string>
+    <string name="role_member">Member</string>
+    <string name="role_pending">Pending</string>
+
+    <!-- ui/invite/InviteScreen.kt -->
+    <string name="invite_title">Invite</string>
+    <string name="invite_error_title">Couldn\'t create invite</string>
+    <string name="invite_require_approval">Require approval</string>
+    <string name="invite_require_approval_explainer">New joiners wait for an admin to approve them.</string>
+    <string name="invite_max_uses_label">Max uses (optional)</string>
+    <string name="invite_create">Create invite</string>
+    <string name="invite_expires">Expires</string>
+    <string name="invite_expiry_never">Never</string>
+    <string name="invite_expiry_1_day">1 day</string>
+    <string name="invite_expiry_7_days">7 days</string>
+    <string name="invite_expiry_30_days">30 days</string>
+    <string name="invite_ready_title">Invite ready</string>
+    <string name="invite_ready_explainer">Share this link - whoever opens it can join the room.</string>
+    <string name="invite_share">Share invite link</string>
+    <string name="invite_create_another">Create another invite</string>
+
+    <!-- ui/rooms/RoomsListScreen.kt -->
+    <string name="rooms_title">Rooms</string>
+    <string name="rooms_developer_settings">Developer settings</string>
+    <string name="rooms_create">Create room</string>
+    <string name="rooms_create_error_title">Couldn\'t create room</string>
+    <string name="rooms_empty_title">No rooms yet</string>
+    <string name="rooms_empty_explainer">Create a room, or open an invite link someone shared with you.</string>
+    <string name="rooms_create_dialog_title">Create a room</string>
+    <string name="rooms_name_label">Room name</string>
+
+    <!-- ui/room/RoomScreen.kt -->
+    <string name="room_mute">Mute notifications</string>
+    <string name="room_unmute">Unmute notifications</string>
+    <string name="room_redeem_voucher">Redeem voucher</string>
+    <string name="room_new_idea">New idea</string>
+    <string name="room_new_idea_title">New idea</string>
+    <string name="room_new_event">New event</string>
+    <string name="room_new_event_title">New event</string>
+    <string name="room_tab_ideas">Ideas</string>
+    <string name="room_tab_events">Events</string>
+    <string name="room_no_ideas_title">No ideas yet</string>
+    <string name="room_no_ideas_hint">Tap + to suggest one.</string>
+    <string name="room_no_events_title">No events yet</string>
+    <string name="room_no_events_hint">Turn an idea into an event, or tap + to create one.</string>
+    <string name="room_upvote">Upvote</string>
+    <string name="room_downvote">Downvote</string>
+    <string name="room_back_to_ideas">Back to ideas</string>
+    <string name="room_edit_idea">Edit idea</string>
+    <string name="room_delete_idea">Delete idea</string>
+    <string name="room_make_this_an_event">Make this an event</string>
+    <string name="room_comments">Comments</string>
+    <string name="room_delete_comment">Delete comment</string>
+    <string name="room_add_comment_label">Add a comment</string>
+    <string name="room_post_comment">Post</string>
+    <string name="room_edit_idea_title">Edit idea</string>
+    <string name="room_delete_idea_confirm_title">Delete this idea?</string>
+    <string name="room_delete_confirm_body">This can\'t be undone.</string>
+    <string name="room_title_label">Title</string>
+    <string name="room_description_optional_label">Description (optional)</string>
+    <string name="room_location_optional_label">Location (optional)</string>
+    <string name="room_all_day">All day</string>
+    <string name="room_add_to_calendar">Add to calendar</string>
+    <string name="room_share_event">Share event</string>
+    <string name="room_cancel_event">Cancel event</string>
+    <string name="room_cancel_event_confirm_title">Cancel this event?</string>
+    <string name="room_keep_it">Keep it</string>
+    <string name="room_rsvp_yes">Yes (%1$d)</string>
+    <string name="room_rsvp_maybe">Maybe (%1$d)</string>
+    <string name="room_rsvp_no">No (%1$d)</string>
+
+    <!-- ui/settings/SettingsScreen.kt -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_recovery_seed">Recovery seed</string>
+    <string name="settings_seed_warning">Anyone with these 24 words can fully recover your account - never share them.</string>
+    <string name="settings_hide">Hide</string>
+    <string name="settings_reveal_seed">Reveal seed</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_explainer">Save an encrypted copy of your seed and room list to Drive, Nextcloud, or local storage.</string>
+    <string name="settings_create_backup">Create backup</string>
+    <string name="settings_restore">Restore</string>
+    <string name="settings_restore_explainer">Import the room list from a backup file for this same account.</string>
+    <string name="settings_restore_from_backup">Restore from backup</string>
+    <string name="settings_automatic_backups">Automatic backups</string>
+    <string name="settings_interval_hours_label">Interval (hours)</string>
+    <string name="settings_passphrase_label">Passphrase</string>
+    <string name="settings_protect_backup_title">Protect this backup</string>
+    <string name="settings_enter_backup_passphrase_title">Enter the backup\'s passphrase</string>
+    <string name="settings_choose_auto_backup_passphrase_title">Choose a passphrase for automatic backups</string>
+    <string name="settings_enable">Enable</string>
+
+    <!-- ui/voucher/VoucherRedeemScreen.kt -->
+    <string name="voucher_title">Redeem voucher</string>
+    <string name="voucher_explainer">Enter a voucher code to boost this room.</string>
+    <string name="voucher_code_label">Voucher code</string>
+    <string name="voucher_redeem">Redeem</string>
+    <string name="voucher_error_title">Couldn\'t redeem voucher</string>
+    <string name="voucher_new_tier">This room is now tier: %1$s</string>
 </resources>

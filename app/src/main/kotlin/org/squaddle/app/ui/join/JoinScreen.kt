@@ -20,7 +20,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.squaddle.app.R
 
 /** [onJoined] fires once [JoinUiState.Joined] is reached; [onCancelled] on [JoinViewModel.cancel]
  * or an explicit "Cancel" tap - both navigate away from this screen, the caller decides where to. */
@@ -50,17 +52,17 @@ public fun JoinScreen(viewModel: JoinViewModel, onJoined: () -> Unit, onCancelle
 @Composable
 private fun ConfirmContent(roomName: String?, onConfirm: () -> Unit, onCancel: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Join this room?", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.join_confirm_title), style = MaterialTheme.typography.headlineSmall)
         Text(
-            roomName ?: "Squaddle room",
+            roomName ?: stringResource(R.string.default_room_name),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
         )
         Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().testTag("confirmJoinButton")) {
-            Text("Join")
+            Text(stringResource(R.string.action_join))
         }
         TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-            Text("Cancel")
+            Text(stringResource(R.string.action_cancel))
         }
     }
 }
@@ -68,9 +70,9 @@ private fun ConfirmContent(roomName: String?, onConfirm: () -> Unit, onCancel: (
 @Composable
 private fun ErrorContent(message: String, onDismiss: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Couldn't open this invite", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.join_error_title), style = MaterialTheme.typography.headlineSmall)
         Text(message, modifier = Modifier.padding(top = 8.dp, bottom = 24.dp))
-        Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text("OK") }
+        Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.action_ok)) }
     }
 }
 
@@ -82,10 +84,10 @@ private fun ErrorContent(message: String, onDismiss: () -> Unit) {
 public fun ClipboardInviteBanner(onOpen: () -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     Card(modifier = modifier.fillMaxWidth().padding(16.dp).testTag("clipboardInviteBanner")) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Open invite from clipboard?", modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.join_clipboard_banner), modifier = Modifier.weight(1f))
             Row(horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("Dismiss") }
-                TextButton(onClick = onOpen) { Text("Open") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_dismiss)) }
+                TextButton(onClick = onOpen) { Text(stringResource(R.string.action_open)) }
             }
         }
     }

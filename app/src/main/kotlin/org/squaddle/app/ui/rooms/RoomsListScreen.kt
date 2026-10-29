@@ -40,8 +40,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.squaddle.app.BuildConfig
+import org.squaddle.app.R
 import org.squaddle.core.encoding.Base32
 
 @Composable
@@ -57,14 +59,14 @@ public fun RoomsListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Rooms") },
+                title = { Text(stringResource(R.string.rooms_title)) },
                 actions = {
                     IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("settingsButton")) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.settings_title))
                     }
                     if (BuildConfig.DEBUG) {
                         IconButton(onClick = onOpenDeveloperSettings, modifier = Modifier.testTag("developerSettingsButton")) {
-                            Icon(Icons.Filled.BugReport, contentDescription = "Developer settings")
+                            Icon(Icons.Filled.BugReport, contentDescription = stringResource(R.string.rooms_developer_settings))
                         }
                     }
                 },
@@ -72,7 +74,7 @@ public fun RoomsListScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = "Create room")
+                Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.rooms_create))
             }
         },
     ) { padding ->
@@ -107,8 +109,8 @@ public fun RoomsListScreen(
     state.createRoomError?.let { error ->
         AlertDialog(
             onDismissRequest = viewModel::dismissCreateRoomError,
-            confirmButton = { TextButton(onClick = viewModel::dismissCreateRoomError) { Text("OK") } },
-            title = { Text("Couldn't create room") },
+            confirmButton = { TextButton(onClick = viewModel::dismissCreateRoomError) { Text(stringResource(R.string.action_ok)) } },
+            title = { Text(stringResource(R.string.rooms_create_error_title)) },
             text = { Text(error) },
         )
     }
@@ -118,9 +120,9 @@ public fun RoomsListScreen(
 private fun EmptyRoomsState(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("No rooms yet", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.rooms_empty_title), style = MaterialTheme.typography.titleLarge)
             Text(
-                "Create a room, or open an invite link someone shared with you.",
+                stringResource(R.string.rooms_empty_explainer),
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
@@ -155,20 +157,20 @@ private fun CreateRoomDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) 
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create a room") },
+        title = { Text(stringResource(R.string.rooms_create_dialog_title)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Room name") },
+                label = { Text(stringResource(R.string.rooms_name_label)) },
                 modifier = Modifier.fillMaxWidth().testTag("createRoomNameField"),
             )
         },
         confirmButton = {
-            Button(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text("Create") }
+            Button(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text(stringResource(R.string.action_create)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }

@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Squaddle</string>
+
+    <!-- Shared across screens - generic action labels. -->
+    <string name="action_continue">Weiter</string>
+    <string name="action_back">Zurück</string>
+    <string name="action_join">Beitreten</string>
+    <string name="action_cancel">Abbrechen</string>
+    <string name="action_ok">OK</string>
+    <string name="action_dismiss">Verwerfen</string>
+    <string name="action_open">Öffnen</string>
+    <string name="action_create">Erstellen</string>
+    <string name="action_delete">Löschen</string>
+    <string name="action_save">Speichern</string>
+    <string name="action_done">Fertig</string>
+    <string name="default_room_name">Squaddle-Raum</string>
+
+    <!-- PROTOCOL.md §8.1 tier names, shown on the room screen's tier badge and the voucher
+         redemption screen. -->
+    <string name="tier_free">Kostenlos</string>
+    <string name="tier_boosted">Geboostet</string>
+    <string name="tier_unlimited">Unbegrenzt</string>
+
+    <!-- Notification channels (push/NotificationChannels.kt) - user-visible in system settings. -->
+    <string name="notification_channel_idea">Neue Ideen</string>
+    <string name="notification_channel_comment">Neue Kommentare</string>
+    <string name="notification_channel_event">Neue Termine</string>
+    <string name="notification_channel_rsvp">Zusagen-Updates</string>
+
+    <!-- push/SyncAllRoomsWorker.kt - never built from the push payload itself (it's content-free,
+         ADR-0013/PROTOCOL.md §6), always from what was just decrypted locally. -->
+    <string name="notification_new_idea">Neue Idee in %1$s</string>
+    <string name="notification_new_comment">Neuer Kommentar in %1$s</string>
+    <string name="notification_new_event">Neuer Termin in %1$s</string>
+    <string name="notification_new_rsvp">Neue Zusage in %1$s</string>
+
+    <!-- MainActivity.kt's SignedInApp - shown only when PushRegistrar.noDistributorInstalled(). -->
+    <string name="push_install_ntfy_hint">Installiere ntfy für sofortige Updates - ohne ntfy prüft Squaddle nur alle paar Stunden auf neue Aktivität.</string>
+
+    <!-- ui/onboarding/OnboardingScreen.kt -->
+    <string name="onboarding_tagline">Keine Konten, keine Passwörter. Deine Identität ist nur eine Seed-Phrase, die nur du besitzt.</string>
+    <string name="onboarding_create_identity">Neue Identität erstellen</string>
+    <string name="onboarding_have_seed">Ich habe bereits eine Seed-Phrase</string>
+    <string name="onboarding_seed_title">Deine Wiederherstellungsphrase</string>
+    <string name="onboarding_seed_warning">Schreibe diese 24 Wörter an einem sicheren Ort auf. Jeder mit dieser Phrase kann auf alle deine Räume zugreifen.</string>
+    <string name="onboarding_wrote_it_down">Ich habe sie aufgeschrieben</string>
+    <string name="onboarding_restore_title">Wiederherstellungsphrase eingeben</string>
+    <string name="onboarding_restore_explainer">Dies stellt deine Identität wieder her und tritt allen Räumen auf deinem Standard-Relay erneut bei, in denen du noch Mitglied bist. Räume auf einem anderen Relay benötigen einen neuen Einladungslink.</string>
+    <string name="onboarding_seed_input_label">24 Wörter, durch Leerzeichen getrennt</string>
+    <string name="onboarding_name_title">Wie sollen wir dich nennen?</string>
+    <string name="onboarding_name_explainer">Dein Anzeigename wird anderen Mitgliedern des Raums angezeigt - er ist nicht Teil deiner Identität.</string>
+    <string name="onboarding_display_name_label">Anzeigename</string>
+    <string name="onboarding_finish_restoring">Wiederherstellung abschließen</string>
+    <string name="onboarding_finish">Fertigstellen</string>
+
+    <!-- ui/join/JoinScreen.kt -->
+    <string name="join_confirm_title">Diesem Raum beitreten?</string>
+    <string name="join_error_title">Einladung konnte nicht geöffnet werden</string>
+    <string name="join_clipboard_banner">Einladung aus der Zwischenablage öffnen?</string>
+
+    <!-- ui/members/MembersScreen.kt -->
+    <string name="members_title">Mitglieder</string>
+    <string name="members_pending_approval">Ausstehende Genehmigung</string>
+    <string name="members_action_failed_title">Aktion fehlgeschlagen</string>
+    <string name="members_reject">Ablehnen</string>
+    <string name="members_approve">Genehmigen</string>
+    <string name="members_promote">Zum Admin befördern</string>
+    <string name="members_demote">Zum Mitglied zurückstufen</string>
+    <string name="members_transfer_ownership">Besitz übertragen</string>
+    <string name="members_remove">Aus dem Raum entfernen</string>
+    <string name="role_owner">Besitzer</string>
+    <string name="role_admin">Admin</string>
+    <string name="role_member">Mitglied</string>
+    <string name="role_pending">Ausstehend</string>
+
+    <!-- ui/invite/InviteScreen.kt -->
+    <string name="invite_title">Einladen</string>
+    <string name="invite_error_title">Einladung konnte nicht erstellt werden</string>
+    <string name="invite_require_approval">Genehmigung erforderlich</string>
+    <string name="invite_require_approval_explainer">Neue Mitglieder warten auf die Genehmigung durch einen Admin.</string>
+    <string name="invite_max_uses_label">Max. Nutzungen (optional)</string>
+    <string name="invite_create">Einladung erstellen</string>
+    <string name="invite_expires">Läuft ab</string>
+    <string name="invite_expiry_never">Nie</string>
+    <string name="invite_expiry_1_day">1 Tag</string>
+    <string name="invite_expiry_7_days">7 Tage</string>
+    <string name="invite_expiry_30_days">30 Tage</string>
+    <string name="invite_ready_title">Einladung bereit</string>
+    <string name="invite_ready_explainer">Teile diesen Link - wer ihn öffnet, kann dem Raum beitreten.</string>
+    <string name="invite_share">Einladungslink teilen</string>
+    <string name="invite_create_another">Weitere Einladung erstellen</string>
+
+    <!-- ui/rooms/RoomsListScreen.kt -->
+    <string name="rooms_title">Räume</string>
+    <string name="rooms_developer_settings">Entwicklereinstellungen</string>
+    <string name="rooms_create">Raum erstellen</string>
+    <string name="rooms_create_error_title">Raum konnte nicht erstellt werden</string>
+    <string name="rooms_empty_title">Noch keine Räume</string>
+    <string name="rooms_empty_explainer">Erstelle einen Raum oder öffne einen Einladungslink, den dir jemand geschickt hat.</string>
+    <string name="rooms_create_dialog_title">Einen Raum erstellen</string>
+    <string name="rooms_name_label">Raumname</string>
+
+    <!-- ui/room/RoomScreen.kt -->
+    <string name="room_mute">Benachrichtigungen stummschalten</string>
+    <string name="room_unmute">Benachrichtigungen aktivieren</string>
+    <string name="room_redeem_voucher">Gutschein einlösen</string>
+    <string name="room_new_idea">Neue Idee</string>
+    <string name="room_new_idea_title">Neue Idee</string>
+    <string name="room_new_event">Neuer Termin</string>
+    <string name="room_new_event_title">Neuer Termin</string>
+    <string name="room_tab_ideas">Ideen</string>
+    <string name="room_tab_events">Termine</string>
+    <string name="room_no_ideas_title">Noch keine Ideen</string>
+    <string name="room_no_ideas_hint">Tippe auf +, um eine vorzuschlagen.</string>
+    <string name="room_no_events_title">Noch keine Termine</string>
+    <string name="room_no_events_hint">Mache aus einer Idee einen Termin, oder tippe auf +, um einen zu erstellen.</string>
+    <string name="room_upvote">Hochstimmen</string>
+    <string name="room_downvote">Herunterstimmen</string>
+    <string name="room_back_to_ideas">Zurück zu den Ideen</string>
+    <string name="room_edit_idea">Idee bearbeiten</string>
+    <string name="room_delete_idea">Idee löschen</string>
+    <string name="room_make_this_an_event">Daraus einen Termin machen</string>
+    <string name="room_comments">Kommentare</string>
+    <string name="room_delete_comment">Kommentar löschen</string>
+    <string name="room_add_comment_label">Kommentar hinzufügen</string>
+    <string name="room_post_comment">Posten</string>
+    <string name="room_edit_idea_title">Idee bearbeiten</string>
+    <string name="room_delete_idea_confirm_title">Diese Idee löschen?</string>
+    <string name="room_delete_confirm_body">Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="room_title_label">Titel</string>
+    <string name="room_description_optional_label">Beschreibung (optional)</string>
+    <string name="room_location_optional_label">Ort (optional)</string>
+    <string name="room_all_day">Ganztägig</string>
+    <string name="room_add_to_calendar">Zum Kalender hinzufügen</string>
+    <string name="room_share_event">Termin teilen</string>
+    <string name="room_cancel_event">Termin absagen</string>
+    <string name="room_cancel_event_confirm_title">Diesen Termin absagen?</string>
+    <string name="room_keep_it">Beibehalten</string>
+    <string name="room_rsvp_yes">Ja (%1$d)</string>
+    <string name="room_rsvp_maybe">Vielleicht (%1$d)</string>
+    <string name="room_rsvp_no">Nein (%1$d)</string>
+
+    <!-- ui/settings/SettingsScreen.kt -->
+    <string name="settings_title">Einstellungen</string>
+    <string name="settings_recovery_seed">Wiederherstellungs-Seed</string>
+    <string name="settings_seed_warning">Jeder mit diesen 24 Wörtern kann dein Konto vollständig wiederherstellen - teile sie niemals.</string>
+    <string name="settings_hide">Verbergen</string>
+    <string name="settings_reveal_seed">Seed anzeigen</string>
+    <string name="settings_backup">Sicherung</string>
+    <string name="settings_backup_explainer">Speichere eine verschlüsselte Kopie deines Seeds und deiner Raumliste in Drive, Nextcloud oder lokal.</string>
+    <string name="settings_create_backup">Sicherung erstellen</string>
+    <string name="settings_restore">Wiederherstellen</string>
+    <string name="settings_restore_explainer">Importiere die Raumliste aus einer Sicherungsdatei für dasselbe Konto.</string>
+    <string name="settings_restore_from_backup">Aus Sicherung wiederherstellen</string>
+    <string name="settings_automatic_backups">Automatische Sicherungen</string>
+    <string name="settings_interval_hours_label">Intervall (Stunden)</string>
+    <string name="settings_passphrase_label">Passphrase</string>
+    <string name="settings_protect_backup_title">Diese Sicherung schützen</string>
+    <string name="settings_enter_backup_passphrase_title">Passphrase der Sicherung eingeben</string>
+    <string name="settings_choose_auto_backup_passphrase_title">Passphrase für automatische Sicherungen wählen</string>
+    <string name="settings_enable">Aktivieren</string>
+
+    <!-- ui/voucher/VoucherRedeemScreen.kt -->
+    <string name="voucher_title">Gutschein einlösen</string>
+    <string name="voucher_explainer">Gib einen Gutscheincode ein, um diesen Raum zu boosten.</string>
+    <string name="voucher_code_label">Gutscheincode</string>
+    <string name="voucher_redeem">Einlösen</string>
+    <string name="voucher_error_title">Gutschein konnte nicht eingelöst werden</string>
+    <string name="voucher_new_tier">Dieser Raum ist jetzt Stufe: %1$s</string>
+</resources>

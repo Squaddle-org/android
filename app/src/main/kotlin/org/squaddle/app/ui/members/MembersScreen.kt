@@ -33,7 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.squaddle.app.R
 import org.squaddle.core.encoding.Base32
 import org.squaddle.core.membership.Role
 
@@ -44,7 +46,7 @@ public fun MembersScreen(viewModel: MembersViewModel, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Members") },
+                title = { Text(stringResource(R.string.members_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -59,12 +61,12 @@ public fun MembersScreen(viewModel: MembersViewModel, onBack: () -> Unit) {
             val (pending, active) = state.members.partition { it.role == Role.PENDING }
             LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
                 if (pending.isNotEmpty()) {
-                    item { SectionHeader("Pending approval") }
+                    item { SectionHeader(stringResource(R.string.members_pending_approval)) }
                     items(pending, key = { Base32.encode(it.user) }) { member ->
                         PendingRow(member, onApprove = { viewModel.approve(member.user) }, onReject = { viewModel.reject(member.user) })
                     }
                 }
-                item { SectionHeader("Members") }
+                item { SectionHeader(stringResource(R.string.members_title)) }
                 items(active, key = { Base32.encode(it.user) }) { member ->
                     MemberRow(
                         member,
@@ -81,8 +83,8 @@ public fun MembersScreen(viewModel: MembersViewModel, onBack: () -> Unit) {
     state.actionError?.let { error ->
         AlertDialog(
             onDismissRequest = viewModel::dismissActionError,
-            confirmButton = { TextButton(onClick = viewModel::dismissActionError) { Text("OK") } },
-            title = { Text("Action failed") },
+            confirmButton = { TextButton(onClick = viewModel::dismissActionError) { Text(stringResource(R.string.action_ok)) } },
+            title = { Text(stringResource(R.string.members_action_failed_title)) },
             text = { Text(error) },
         )
     }
@@ -103,8 +105,8 @@ private fun PendingRow(member: MemberSummary, onApprove: () -> Unit, onReject: (
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("member_${Base32.encode(member.user)}")) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(shortKey(member.user), modifier = Modifier.weight(1f))
-            if (member.canReject) TextButton(onClick = onReject) { Text("Reject") }
-            if (member.canApprove) TextButton(onClick = onApprove) { Text("Approve") }
+            if (member.canReject) TextButton(onClick = onReject) { Text(stringResource(R.string.members_reject)) }
+            if (member.canApprove) TextButton(onClick = onApprove) { Text(stringResource(R.string.members_approve)) }
         }
     }
 }
@@ -133,16 +135,19 @@ private fun MemberRow(
                     }
                     DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                         if (member.canPromote) {
-                            DropdownMenuItem(text = { Text("Promote to admin") }, onClick = { showMenu = false; onPromote() })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.members_promote)) }, onClick = { showMenu = false; onPromote() })
                         }
                         if (member.canDemote) {
-                            DropdownMenuItem(text = { Text("Demote to member") }, onClick = { showMenu = false; onDemote() })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.members_demote)) }, onClick = { showMenu = false; onDemote() })
                         }
                         if (member.canTransferOwnership) {
-                            DropdownMenuItem(text = { Text("Transfer ownership") }, onClick = { showMenu = false; onTransferOwnership() })
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.members_transfer_ownership)) },
+                                onClick = { showMenu = false; onTransferOwnership() },
+                            )
                         }
                         if (member.canKick) {
-                            DropdownMenuItem(text = { Text("Remove from room") }, onClick = { showMenu = false; onKick() })
+                            DropdownMenuItem(text = { Text(stringResource(R.string.members_remove)) }, onClick = { showMenu = false; onKick() })
                         }
                     }
                 }
@@ -151,11 +156,12 @@ private fun MemberRow(
     }
 }
 
+@Composable
 private fun roleLabel(role: Role): String = when (role) {
-    Role.OWNER -> "Owner"
-    Role.ADMIN -> "Admin"
-    Role.MEMBER -> "Member"
-    Role.PENDING -> "Pending"
+    Role.OWNER -> stringResource(R.string.role_owner)
+    Role.ADMIN -> stringResource(R.string.role_admin)
+    Role.MEMBER -> stringResource(R.string.role_member)
+    Role.PENDING -> stringResource(R.string.role_pending)
 }
 
 private fun shortKey(user: ByteArray): String = Base32.encode(user).take(12)

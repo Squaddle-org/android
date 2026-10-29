@@ -157,3 +157,22 @@ Needs a real Play Console listing with a referrer-tagged install link, or
 4. Confirm an App Link or clipboard-pasted invite opened at the same time as a referrer still
    takes priority (`joinLink != null` short-circuits the referrer check) - the referrer path
    never overrides an already-active join flow.
+
+## Item 10: Localization
+
+1. Set the device/emulator's system language to German; relaunch the app. Walk through
+   onboarding (both create and restore paths), rooms list, a room's ideas/events tabs, members,
+   invite, settings (seed reveal, backup, restore, auto-backup), and voucher redemption; confirm
+   every screen renders in German with no leftover English strings and no layout overflow/
+   truncation from the longer German text (`Einstellungen`, `Wiederherstellungs-Seed`, etc. run
+   noticeably longer than their English originals - check narrow buttons/chips in particular).
+2. Switch back to English (or any non-German locale); confirm everything reverts to the English
+   text from `values/strings.xml` with no missing-string fallback blanks.
+3. `DeveloperSettingsScreen` (debug-only) is deliberately NOT localized - it's never shown to a
+   real end user (gated behind `BuildConfig.DEBUG`), so confirm it stays in English in both
+   locales and that this is expected, not a missed string.
+4. Error text that originates in a `ViewModel` or from the relay itself (e.g. `RoomViewModel`'s
+   `friendlyErrorMessage`, `Bip39.InvalidMnemonicException`'s message, any raw relay error
+   message) stays in English in both locales - `ViewModel`s have no `Context`/resource access in
+   this app's architecture, and relay-authored text is English by protocol design. This is a
+   deliberate, documented scope boundary for this item, not a bug.
