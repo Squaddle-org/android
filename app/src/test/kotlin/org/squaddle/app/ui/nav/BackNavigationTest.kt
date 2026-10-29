@@ -21,6 +21,7 @@ import org.squaddle.app.ui.invite.InviteScreen
 import org.squaddle.app.ui.invite.InviteViewModel
 import org.squaddle.app.ui.onboarding.OnboardingScreen
 import org.squaddle.app.ui.onboarding.OnboardingViewModel
+import org.squaddle.app.ui.room.IdeaDetailScreen
 import org.squaddle.app.ui.room.RoomScreen
 import org.squaddle.app.ui.room.RoomViewModel
 import org.squaddle.core.membership.Role
@@ -35,13 +36,17 @@ import org.squaddle.core.ops.RoomState
  * a real `ComponentActivity`, so `BackHandler` composables register with a real dispatcher and
  * [Espresso.pressBack] actually exercises them, not just a mocked callback).
  *
- * Covers the in-screen `BackHandler` paths from the back-navigation fix: idea detail -> room,
- * onboarding step-back, and the new/edit-idea + invite-options "discard changes?" confirmations.
- * The route-to-route paths (Room -> RoomsList, Members/Invite/Settings -> previous screen, the
- * Join flow landing back on RoomsList) live in `MainActivity.kt`'s real `NavHost` and are
- * exercised by the manual adb pass in `MANUAL_TESTING.md`, not here - a `NavHost` built from a
- * `FragmentActivity` plus this app's full manual DI container isn't practical to stand up under
- * Robolectric without duplicating most of `AppContainer`/`SquaddleApplication`.
+ * Covers the in-screen `BackHandler` paths from the back-navigation fix: onboarding step-back,
+ * and the new/edit-idea + invite-options "discard changes?" confirmations - plus (idea detail
+ * having since become a real `Route.Idea` destination, not a `BackHandler`-driven
+ * `RoomScreen` state) that `RoomScreen` opens it via a plain callback and that
+ * `IdeaDetailScreen`'s own system back is a plain `onBack()` call, not an interception, now that
+ * `NavHost`'s own pop is what actually returns to the room. The route-to-route paths themselves
+ * (Room -> RoomsList, Members/Invite/Settings/Idea/Event -> previous screen, the Join flow
+ * landing back on RoomsList) live in `MainActivity.kt`'s real `NavHost` and are exercised by the
+ * manual adb pass in `MANUAL_TESTING.md`, not here - a `NavHost` built from a `FragmentActivity`
+ * plus this app's full manual DI container isn't practical to stand up under Robolectric without
+ * duplicating most of `AppContainer`/`SquaddleApplication`.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -63,7 +68,37 @@ class BackNavigationTest {
     }
 
     @Test
-    fun backFromIdeaDetailReturnsToTheIdeaListWithoutCallingOnBack() {
+    fun tappingAnIdeaInTheRoomListOpensItsDetailRoute() {
+        val ideaA = idea(ByteArray(16) { 1 }, "Camping trip")
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(ideas = mapOf("01" to ideaA)), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore())
+        var openedIdeaId: ByteArray? = null
+
+        composeRule.setContent {
+            RoomScreen(viewModel = viewModel, roomName = "Test Room", onBack = {}, onOpenIdea = { openedIdeaId = it })
+        }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Camping trip").performClick()
+        composeRule.waitForIdle()
+
+        // RoomScreen itself no longer renders idea detail inline (Route.Idea does, in
+        // MainActivity.kt's NavHost) - tapping the row just reports which idea to open.
+        assert(openedIdeaId.contentEquals(ideaA.id)) { "tapping the idea row should report its id via onOpenIdea" }
+    }
+
+    @Test
+    fun backIconOnIdeaDetailScreenCallsOnBack() {
+        // Deliberately the back ICON tap, not Espresso.pressBack() - same reasoning as
+        // untouchedInviteOptionsLeaveImmediatelyViaTheBackIcon above: idea detail is a real
+        // Route.Idea destination now, with no BackHandler of its own any more (none is needed -
+        // NavHost's own default pop is what returns to the room on real system back). Rendered in
+        // isolation here with no NavHost present, there is nothing to intercept system back at
+        // all, so that path is exercised on-device instead (MANUAL_TESTING.md); the back icon's
+        // onClick is the one path this screen fully owns on its own, which is what's meaningful
+        // to unit-test in isolation.
         val ideaA = idea(ByteArray(16) { 1 }, "Camping trip")
         val gateway = FakeSyncGateway().apply {
             materialization = RoomMaterialization(RoomState(ideas = mapOf("01" to ideaA)), emptyMap())
@@ -73,18 +108,37 @@ class BackNavigationTest {
         var onBackCalls = 0
 
         composeRule.setContent {
-            RoomScreen(viewModel = viewModel, roomName = "Test Room", onBack = { onBackCalls++ })
+            IdeaDetailScreen(viewModel = viewModel, ideaId = ideaA.id, onBack = { onBackCalls++ })
         }
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Camping trip").performClick()
-        composeRule.waitForIdle()
-        composeRule.onNodeWithText("Comments").assertIsDisplayed() // confirms we're in idea detail
+        composeRule.onNodeWithText("Camping trip").assertIsDisplayed()
+        composeRule.onNodeWithText("Comments").assertIsDisplayed() // confirms this is the detail screen's own content
 
-        Espresso.pressBack()
+        composeRule.onNodeWithContentDescription("Back to ideas").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("Camping trip").assertIsDisplayed() // back on the idea list
-        assert(onBackCalls == 0) { "back from idea detail must not call onBack (that would exit the room) - got $onBackCalls calls" }
+        assert(onBackCalls == 1) { "the back icon on idea detail should call onBack exactly once, got $onBackCalls" }
+    }
+
+    @Test
+    fun ideaDetailScreenPopsItselfWhenTheIdeaDoesNotExist() {
+        // Covers both "a deep link named an idea that doesn't exist (any more)" and "this idea
+        // was just deleted by this client or another one" (IdeaDetailScreen's own doc comment) -
+        // both end up at the same state once the next refresh lands: no idea with this id.
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore())
+        var onBackCalls = 0
+        val missingIdeaId = ByteArray(16) { 9 }
+
+        composeRule.setContent {
+            IdeaDetailScreen(viewModel = viewModel, ideaId = missingIdeaId, onBack = { onBackCalls++ })
+        }
+        composeRule.waitForIdle()
+
+        assert(onBackCalls == 1) { "idea detail should pop itself when its idea doesn't exist, got $onBackCalls calls" }
     }
 
     @Test

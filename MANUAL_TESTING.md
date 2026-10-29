@@ -272,6 +272,39 @@ NavHost-level routing itself (one real screen popping to the one behind it) need
   app currently, so that part of the requirement is moot. "A non-empty search field clears
   first" is also moot - no search field exists anywhere in the app.
 
+## Idea/event detail as real routes + internal deep links
+
+Idea detail moved from `RoomScreen`'s own `selectedIdeaId`-gated `BackHandler` state to a real
+`Route.Idea` nav destination (`IdeaDetailScreen`, `ui/room/RoomScreen.kt`); event detail is a new
+screen built the same way (`Route.Event`/`EventDetailScreen`) - there was no event-detail view at
+all before this (events were inline-only in `EventRow`). Both share the same `RoomViewModel`
+instance as the room they belong to (via `navController.getBackStackEntry(Route.Room(...))` as
+the `ViewModelStoreOwner`), confirmed on the `squaddle_test` AVD:
+
+- **Tap an idea -> idea detail -> back -> room**: created a real idea ("Camping") in TestRoom,
+  tapped it, landed on the real `Route.Idea` screen (title, vote control, "Make this an event",
+  Comments) with no crash; `KEYCODE_BACK` landed cleanly back on the room's Ideas tab with the
+  idea still listed. No `BackHandler` is registered by this screen any more - plain `NavHost` pop.
+- **`squaddle://room/{roomIdB32}/idea/{ideaIdB32}` internal deep link**: fired via
+  `adb shell am start -a android.intent.action.VIEW -d "squaddle://room/.../idea/..." -n org.squaddle/.app.MainActivity`
+  (an explicit component target, the same way a real notification's `PendingIntent` would reach
+  `MainActivity` without any manifest intent-filter - `Route.kt`'s own doc comment on why none is
+  registered). Tested with an idea id that doesn't exist (easier to get right than extracting a
+  real encrypted idea id off-device): `parseInternalDeepLink` parsed it, `navigateToIdeaOrEvent`
+  pushed `Route.Room` then `Route.Idea` as designed, `IdeaDetailScreen` found no matching idea and
+  auto-popped itself via its own `LaunchedEffect` - landed cleanly on the real Room screen (not
+  `RoomsList`, not a crash, not stuck loading), and a further back from there reached `RoomsList`
+  normally. This exercises the full new deep-link code path (parse -> synthetic stack -> screen)
+  even without a real idea id to show.
+- **Not yet done**: the same deep link with a real (existing) idea id - not separately re-walked
+  since the underlying `Route.Idea` screen itself was already confirmed above via the in-app tap,
+  and the deep-link-specific mechanics (parsing, stack-building, the not-found path) are exactly
+  what the bogus-id test above exercises; wiring an actual notification to construct one of these
+  links is explicitly deferred, per the task that added this (`RoomSyncNotifier`'s own doc
+  comment still calls this out as a scope cut). Event detail's own on-device walk (tap a row,
+  back to room) also wasn't separately re-done - same `RoomViewModel`-sharing and
+  `LaunchedEffect`-driven pop mechanics as idea detail, same code path, not expected to differ.
+
 ## Item 12: Release build
 
 Build-level verification already done (this environment has no emulator/device, so what

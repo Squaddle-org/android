@@ -3,7 +3,6 @@
 package org.squaddle.app.ui.room
 
 import android.content.Intent
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +50,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,19 +79,12 @@ public fun RoomScreen(
     onOpenMembers: () -> Unit = {},
     onOpenInvite: () -> Unit = {},
     onOpenVoucherRedeem: () -> Unit = {},
+    onOpenIdea: (ByteArray) -> Unit = {},
+    onOpenEvent: (ByteArray) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     var showCreateIdeaDialog by remember { mutableStateOf(false) }
     var showCreateEventDialog by remember { mutableStateOf(false) }
-    var convertIdeaId by remember { mutableStateOf<ByteArray?>(null) }
-
-    // "idea detail -> room": the detail view is local RoomViewModel state (selectedIdeaId), not
-    // its own nav destination (see Route.kt's own doc comment on why) - this is what makes
-    // system back land back on the idea list instead of falling through to onBack/NavHost.
-    BackHandler(enabled = state.selectedIdeaId != null) {
-        viewModel.selectIdea(null)
-    }
 
     Scaffold(
         topBar = {
@@ -127,59 +121,37 @@ public fun RoomScreen(
             )
         },
         floatingActionButton = {
-            if (state.selectedIdeaId == null) {
-                when (state.selectedTab) {
-                    RoomTab.IDEAS -> FloatingActionButton(onClick = { showCreateIdeaDialog = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.room_new_idea))
-                    }
-                    RoomTab.EVENTS -> if (state.canCreateEvent) {
-                        FloatingActionButton(onClick = { showCreateEventDialog = true }) {
-                            Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.room_new_event))
-                        }
+            when (state.selectedTab) {
+                RoomTab.IDEAS -> FloatingActionButton(onClick = { showCreateIdeaDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.room_new_idea))
+                }
+                RoomTab.EVENTS -> if (state.canCreateEvent) {
+                    FloatingActionButton(onClick = { showCreateEventDialog = true }) {
+                        Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.room_new_event))
                     }
                 }
             }
         },
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-            if (state.selectedIdeaId == null) {
-                TabRow(selectedTabIndex = state.selectedTab.ordinal) {
-                    Tab(
-                        selected = state.selectedTab == RoomTab.IDEAS,
-                        onClick = { viewModel.selectTab(RoomTab.IDEAS) },
-                        text = { Text(stringResource(R.string.room_tab_ideas)) },
-                    )
-                    Tab(
-                        selected = state.selectedTab == RoomTab.EVENTS,
-                        onClick = { viewModel.selectTab(RoomTab.EVENTS) },
-                        text = { Text(stringResource(R.string.room_tab_events)) },
-                    )
-                }
+            TabRow(selectedTabIndex = state.selectedTab.ordinal) {
+                Tab(
+                    selected = state.selectedTab == RoomTab.IDEAS,
+                    onClick = { viewModel.selectTab(RoomTab.IDEAS) },
+                    text = { Text(stringResource(R.string.room_tab_ideas)) },
+                )
+                Tab(
+                    selected = state.selectedTab == RoomTab.EVENTS,
+                    onClick = { viewModel.selectTab(RoomTab.EVENTS) },
+                    text = { Text(stringResource(R.string.room_tab_events)) },
+                )
             }
             when {
                 state.isLoading -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
-                state.selectedIdeaId != null -> {
-                    val idea = state.ideas.firstOrNull { it.id.contentEquals(state.selectedIdeaId) }
-                    if (idea != null) {
-                        IdeaDetail(
-                            idea = idea,
-                            comments = state.comments,
-                            canCreateEvent = state.canCreateEvent,
-                            onBack = { viewModel.selectIdea(null) },
-                            onVote = { dir -> viewModel.toggleVote(idea.id, dir) },
-                            onEdit = { title, desc -> viewModel.editIdea(idea.id, title, desc) },
-                            onDelete = { viewModel.deleteIdea(idea.id) },
-                            onAddComment = { text -> viewModel.addComment(idea.id, text) },
-                            onDeleteComment = { commentId -> viewModel.deleteComment(commentId) },
-                            onConvertToEvent = { convertIdeaId = idea.id },
-                        )
-                    }
-                }
-                // Pull-to-refresh only applies to the two list views, not the idea-detail screen
-                // above (that one's own content doesn't scroll as a plain list) - same split
-                // RoomsListScreen.kt uses.
+                // Idea/event detail are their own nav destinations now (Route.Idea/Route.Event,
+                // MainActivity.kt) - RoomScreen only ever shows the two list views.
                 state.selectedTab == RoomTab.EVENTS -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
                     isRefreshing = state.isRefreshing,
                     onRefresh = viewModel::pullToRefresh,
@@ -188,13 +160,10 @@ public fun RoomScreen(
                     if (state.events.isEmpty()) {
                         EmptyEventsState()
                     } else {
-                        val shareEventLabel = stringResource(R.string.room_share_event)
                         EventsList(
                             events = state.events,
+                            onSelect = onOpenEvent,
                             onRsvp = { eventId, value -> viewModel.rsvp(eventId, value) },
-                            onCancel = { eventId -> viewModel.cancelEvent(eventId) },
-                            onAddToCalendar = { event -> context.startActivity(calendarInsertIntent(event)) },
-                            onShareIcs = { event -> context.startActivity(Intent.createChooser(shareIcsIntent(context, event), shareEventLabel)) },
                         )
                     }
                 }
@@ -208,7 +177,7 @@ public fun RoomScreen(
                     } else {
                         IdeasList(
                             ideas = state.ideas,
-                            onSelect = { viewModel.selectIdea(it) },
+                            onSelect = onOpenIdea,
                             onVote = { ideaId, dir -> viewModel.toggleVote(ideaId, dir) },
                         )
                     }
@@ -240,18 +209,6 @@ public fun RoomScreen(
         )
     }
 
-    val ideaToConvert = convertIdeaId
-    if (ideaToConvert != null) {
-        EventEditDialog(
-            initialTitle = state.ideas.firstOrNull { it.id.contentEquals(ideaToConvert) }?.title.orEmpty(),
-            onDismiss = { convertIdeaId = null },
-            onSave = { title, start, end, tz, location, allDay ->
-                viewModel.createEvent(ideaId = ideaToConvert, title = title, start = start, end = end, tz = tz, location = location, allDay = allDay)
-                convertIdeaId = null
-            },
-        )
-    }
-
     // Rollback error from an optimistic vote/comment that failed to push (RoomViewModel.toggleVote/
     // addComment) - this message is ViewModel-authored, not a Composable string, so it's not run
     // through stringResource (see MANUAL_TESTING.md item 10's own documented scope boundary).
@@ -263,6 +220,98 @@ public fun RoomScreen(
             confirmButton = { TextButton(onClick = viewModel::dismissActionError) { Text(stringResource(R.string.action_ok)) } },
         )
     }
+}
+
+/**
+ * [Route.Idea]'s screen (`MainActivity.kt`) - the idea-detail view used to be [RoomScreen]'s own
+ * `selectedIdeaId`-gated branch with its own in-screen `BackHandler`; it's a real nav destination
+ * now, so plain system back (NavHost's own default pop) is what returns to the room, no
+ * `BackHandler` needed here at all. [viewModel] is the SAME [RoomViewModel] instance backing
+ * [RoomScreen] for this room (shared via the `Route.Room` back-stack entry as its
+ * `ViewModelStoreOwner` - `MainActivity.kt`'s own doc comment on why), not a fresh one, so a vote/
+ * edit/comment made here is visible immediately if the user navigates back to the ideas list.
+ *
+ * [onBack] is called automatically (not just on the back icon) the moment [ideaId] stops
+ * resolving to a real idea - covers both "this idea was just deleted" (by this client or another
+ * one) and "a deep link named an idea that doesn't exist (any more)" with the one check, the same
+ * way [Route.Join]'s own malformed-link case pops itself.
+ */
+@Composable
+public fun IdeaDetailScreen(viewModel: RoomViewModel, ideaId: ByteArray, onBack: () -> Unit) {
+    val state by viewModel.uiState.collectAsState()
+    var convertEventRequested by remember { mutableStateOf(false) }
+
+    // selectIdea(ideaId) is what makes RoomViewModel compute state.comments for this idea at all
+    // (RoomViewModel.doRefresh's own doc comment) - selectIdea(null) on the way out so a stale
+    // comments list isn't left sitting in the shared ViewModel's state once we leave.
+    DisposableEffect(ideaId) {
+        viewModel.selectIdea(ideaId)
+        onDispose { viewModel.selectIdea(null) }
+    }
+
+    val idea = state.ideas.firstOrNull { it.id.contentEquals(ideaId) }
+    LaunchedEffect(state.isLoading, idea) {
+        if (!state.isLoading && idea == null) onBack()
+    }
+
+    if (idea == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+
+    IdeaDetail(
+        idea = idea,
+        comments = state.comments,
+        canCreateEvent = state.canCreateEvent,
+        onBack = onBack,
+        onVote = { dir -> viewModel.toggleVote(idea.id, dir) },
+        onEdit = { title, desc -> viewModel.editIdea(idea.id, title, desc) },
+        onDelete = { viewModel.deleteIdea(idea.id) },
+        onAddComment = { text -> viewModel.addComment(idea.id, text) },
+        onDeleteComment = { commentId -> viewModel.deleteComment(commentId) },
+        onConvertToEvent = { convertEventRequested = true },
+    )
+
+    if (convertEventRequested) {
+        EventEditDialog(
+            initialTitle = idea.title,
+            onDismiss = { convertEventRequested = false },
+            onSave = { title, start, end, tz, location, allDay ->
+                viewModel.createEvent(ideaId = idea.id, title = title, start = start, end = end, tz = tz, location = location, allDay = allDay)
+                convertEventRequested = false
+            },
+        )
+    }
+}
+
+/** [Route.Event]'s screen - see [IdeaDetailScreen]'s own doc comment, same posture (shared
+ * [viewModel], auto-[onBack] once [eventId] stops resolving - covers a cancel here or elsewhere,
+ * since a cancelled event is filtered out of `state.events` the moment the next refresh lands,
+ * same as [RoomViewModel.doRefresh]'s existing `filterNot { it.cancelled }`). */
+@Composable
+public fun EventDetailScreen(viewModel: RoomViewModel, eventId: ByteArray, onBack: () -> Unit) {
+    val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    val event = state.events.firstOrNull { it.id.contentEquals(eventId) }
+    LaunchedEffect(state.isLoading, event) {
+        if (!state.isLoading && event == null) onBack()
+    }
+
+    if (event == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+
+    val shareEventLabel = stringResource(R.string.room_share_event)
+    EventDetail(
+        event = event,
+        onBack = onBack,
+        onRsvp = { value -> viewModel.rsvp(event.id, value) },
+        onCancel = { viewModel.cancelEvent(event.id) },
+        onAddToCalendar = { context.startActivity(calendarInsertIntent(event)) },
+        onShareIcs = { context.startActivity(Intent.createChooser(shareIcsIntent(context, event), shareEventLabel)) },
+    )
 }
 
 /** PROTOCOL.md §8.1's `"free"|"boosted"|"unlimited"|"custom"` - the first three get real
@@ -502,20 +551,12 @@ private fun EmptyEventsState(modifier: Modifier = Modifier) {
 private fun EventsList(
     events: List<EventSummary>,
     modifier: Modifier = Modifier,
+    onSelect: (ByteArray) -> Unit,
     onRsvp: (ByteArray, String) -> Unit,
-    onCancel: (ByteArray) -> Unit,
-    onAddToCalendar: (EventSummary) -> Unit,
-    onShareIcs: (EventSummary) -> Unit,
 ) {
     LazyColumn(modifier = modifier.fillMaxSize()) {
         items(events, key = { Base32.encode(it.id) }) { event ->
-            EventRow(
-                event = event,
-                onRsvp = { value -> onRsvp(event.id, value) },
-                onCancel = { onCancel(event.id) },
-                onAddToCalendar = { onAddToCalendar(event) },
-                onShareIcs = { onShareIcs(event) },
-            )
+            EventRow(event = event, onClick = { onSelect(event.id) }, onRsvp = { value -> onRsvp(event.id, value) })
         }
     }
 }
@@ -530,50 +571,75 @@ private fun formatEventTime(event: EventSummary): String {
     }
 }
 
+/** Shared by [EventRow] (the list's own quick action, like [VoteControl] is for ideas) and
+ * [EventDetail] - RSVP is the one event action that stays available straight from the list, the
+ * same "primary action inline, everything else in detail" split [IdeaRow]/[IdeaDetail] already
+ * established for ideas (edit/delete/comments are detail-only there too). */
 @Composable
-private fun EventRow(
+private fun RsvpChips(event: EventSummary, onRsvp: (String) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        FilterChip(
+            selected = event.myRsvp == "yes",
+            onClick = { onRsvp("yes") },
+            label = { Text(stringResource(R.string.room_rsvp_yes, event.yesCount)) },
+            modifier = Modifier.testTag("rsvpYes_${Base32.encode(event.id)}"),
+        )
+        FilterChip(
+            selected = event.myRsvp == "maybe",
+            onClick = { onRsvp("maybe") },
+            label = { Text(stringResource(R.string.room_rsvp_maybe, event.maybeCount)) },
+            modifier = Modifier.padding(start = 8.dp),
+        )
+        FilterChip(
+            selected = event.myRsvp == "no",
+            onClick = { onRsvp("no") },
+            label = { Text(stringResource(R.string.room_rsvp_no, event.noCount)) },
+            modifier = Modifier.padding(start = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun EventRow(event: EventSummary, onClick: () -> Unit, onRsvp: (String) -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("event_${Base32.encode(event.id)}"),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(event.title, style = MaterialTheme.typography.titleMedium)
+            Text(formatEventTime(event), style = MaterialTheme.typography.bodyMedium)
+            event.location?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            RsvpChips(event = event, onRsvp = onRsvp, modifier = Modifier.padding(top = 8.dp))
+        }
+    }
+}
+
+/** [EventDetailScreen]'s content - cancel/add-to-calendar/share live only here now (not inline on
+ * [EventRow] any more), the same list-vs-detail action split [IdeaDetail] already has. */
+@Composable
+private fun EventDetail(
     event: EventSummary,
+    onBack: () -> Unit,
     onRsvp: (String) -> Unit,
     onCancel: () -> Unit,
     onAddToCalendar: () -> Unit,
     onShareIcs: () -> Unit,
 ) {
     var showCancelConfirm by remember { mutableStateOf(false) }
-    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("event_${Base32.encode(event.id)}")) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(event.title, style = MaterialTheme.typography.titleMedium)
-                    Text(formatEventTime(event), style = MaterialTheme.typography.bodyMedium)
-                    event.location?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                }
-                IconButton(onClick = onAddToCalendar) { Icon(Icons.Filled.CalendarMonth, contentDescription = stringResource(R.string.room_add_to_calendar)) }
-                IconButton(onClick = onShareIcs) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.room_share_event)) }
-                if (event.canCancel) {
-                    IconButton(onClick = { showCancelConfirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.room_cancel_event)) }
-                }
-            }
-            Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                FilterChip(
-                    selected = event.myRsvp == "yes",
-                    onClick = { onRsvp("yes") },
-                    label = { Text(stringResource(R.string.room_rsvp_yes, event.yesCount)) },
-                    modifier = Modifier.testTag("rsvpYes_${Base32.encode(event.id)}"),
-                )
-                FilterChip(
-                    selected = event.myRsvp == "maybe",
-                    onClick = { onRsvp("maybe") },
-                    label = { Text(stringResource(R.string.room_rsvp_maybe, event.maybeCount)) },
-                    modifier = Modifier.padding(start = 8.dp),
-                )
-                FilterChip(
-                    selected = event.myRsvp == "no",
-                    onClick = { onRsvp("no") },
-                    label = { Text(stringResource(R.string.room_rsvp_no, event.noCount)) },
-                    modifier = Modifier.padding(start = 8.dp),
-                )
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back)) }
+            Text(event.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            IconButton(onClick = onAddToCalendar) { Icon(Icons.Filled.CalendarMonth, contentDescription = stringResource(R.string.room_add_to_calendar)) }
+            IconButton(onClick = onShareIcs) { Icon(Icons.AutoMirrored.Filled.Send, contentDescription = stringResource(R.string.room_share_event)) }
+            if (event.canCancel) {
+                IconButton(onClick = { showCancelConfirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.room_cancel_event)) }
             }
         }
+        Text(formatEventTime(event), modifier = Modifier.padding(top = 8.dp))
+        event.location?.let { Text(it, modifier = Modifier.padding(top = 4.dp)) }
+        RsvpChips(event = event, onRsvp = onRsvp, modifier = Modifier.padding(top = 16.dp))
     }
 
     if (showCancelConfirm) {

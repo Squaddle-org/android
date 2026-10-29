@@ -65,8 +65,11 @@ import org.squaddle.app.ui.join.JoinViewModel
 import org.squaddle.app.ui.members.MembersScreen
 import org.squaddle.app.ui.members.MembersViewModel
 import org.squaddle.app.ui.nav.Route
+import org.squaddle.app.ui.nav.parseInternalDeepLink
 import org.squaddle.app.ui.onboarding.OnboardingScreen
 import org.squaddle.app.ui.onboarding.OnboardingViewModel
+import org.squaddle.app.ui.room.EventDetailScreen
+import org.squaddle.app.ui.room.IdeaDetailScreen
 import org.squaddle.app.ui.room.RoomScreen
 import org.squaddle.app.ui.room.RoomViewModel
 import org.squaddle.app.ui.rooms.RoomsListScreen
@@ -162,6 +165,23 @@ private fun NavController.navigateToJoin(link: InviteLink) {
     navigate(Route.Join(link.toUriString()))
 }
 
+/** Builds the proper synthetic back stack for a `squaddle://room/.../idea|event/...` deep link
+ * (`Route.kt`'s own doc comment on why this URI scheme exists) - always pushes [Route.Room]
+ * directly beneath [route], explicitly, rather than relying on [route]'s own `navigate()` call to
+ * construct it: this is what makes `composable<Route.Idea>`/`composable<Route.Event>`'s
+ * `getBackStackEntry(Route.Room(...))` lookup always succeed, and what makes back from the idea/
+ * event land on the room (its real "parent") instead of skipping past it, the same deliberate
+ * stack-building [navigateToJoin] above already relies on for [Route.RoomsList]. */
+private fun NavController.navigateToIdeaOrEvent(route: Route) {
+    val roomIdB32 = when (route) {
+        is Route.Idea -> route.roomIdB32
+        is Route.Event -> route.roomIdB32
+        else -> return
+    }
+    navigate(Route.Room(roomIdB32))
+    navigate(route)
+}
+
 @Composable
 private fun SquaddleApp(pendingDeepLink: MutableState<String?>) {
     val container = LocalContext.current.appContainer()
@@ -250,16 +270,25 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
         }
     }
 
-    // App Link: consume a pending deep link once, whenever one arrives (first launch, or a
-    // relaunch via onNewIntent while already signed in). Pushed as a real Route.Join destination
-    // on top of whatever's currently showing - RoomsList is always the graph's start destination
-    // underneath everything, so back from here always lands on it ("entered via App Link: back
-    // goes to the room's parent" - RoomsList is that parent, with no synthetic stack-building
-    // needed since it was never popped off in the first place).
+    // App Link / internal deep link: consume a pending one once, whenever it arrives (first
+    // launch, or a relaunch via onNewIntent while already signed in). An invite link is pushed as
+    // a real Route.Join destination on top of whatever's currently showing - RoomsList is always
+    // the graph's start destination underneath everything, so back from here always lands on it
+    // ("entered via App Link: back goes to the room's parent" - RoomsList is that parent, with no
+    // synthetic stack-building needed since it was never popped off in the first place). A
+    // squaddle://room/... link (Route.kt's own doc comment - today only ever constructed inside
+    // this app, not yet fed by a real notification tap) DOES need an explicit synthetic stack
+    // (navigateToIdeaOrEvent), since its own "parent" (Route.Room) isn't already sitting there
+    // the way RoomsList is for Join.
     LaunchedEffect(pendingDeepLink.value) {
         val text = pendingDeepLink.value
         if (text != null) {
-            gateway.parseInviteLink(text)?.let { navController.navigateToJoin(it) }
+            val internalRoute = parseInternalDeepLink(text)
+            if (internalRoute != null) {
+                navController.navigateToIdeaOrEvent(internalRoute)
+            } else {
+                gateway.parseInviteLink(text)?.let { navController.navigateToJoin(it) }
+            }
             pendingDeepLink.value = null
         }
     }
@@ -348,7 +377,40 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                     onOpenMembers = { navController.navigate(Route.Members(route.roomIdB32)) },
                     onOpenInvite = { navController.navigate(Route.Invite(route.roomIdB32)) },
                     onOpenVoucherRedeem = { navController.navigate(Route.VoucherRedeem(route.roomIdB32)) },
+                    onOpenIdea = { ideaId -> navController.navigate(Route.Idea(route.roomIdB32, Base32.encode(ideaId))) },
+                    onOpenEvent = { eventId -> navController.navigate(Route.Event(route.roomIdB32, Base32.encode(eventId))) },
                 )
+            }
+            composable<Route.Idea> { backStackEntry ->
+                val route: Route.Idea = backStackEntry.toRoute()
+                val ideaId = remember(route.ideaIdB32) { Base32.decode(route.ideaIdB32) ?: ByteArray(0) }
+                // Shares Route.Room's own RoomViewModel instance (scoped to that entry, which is
+                // guaranteed to be on the back stack directly beneath this one - see this
+                // composable()'s only two entry points below: the in-app tap in RoomScreen always
+                // starts from an already-open Route.Room, and navigateToIdeaOrEvent explicitly
+                // pushes Route.Room first for a deep link) rather than a fresh one, so a vote/
+                // comment made here is visible immediately on the ideas list behind it.
+                val roomEntry = remember(backStackEntry) { navController.getBackStackEntry(Route.Room(route.roomIdB32)) }
+                val viewModel: RoomViewModel = viewModel(
+                    viewModelStoreOwner = roomEntry,
+                    factory = viewModelFactory {
+                        initializer { RoomViewModel(Base32.decode(route.roomIdB32) ?: ByteArray(0), container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
+                    },
+                )
+                IdeaDetailScreen(viewModel = viewModel, ideaId = ideaId, onBack = { navController.popBackStack() })
+            }
+            composable<Route.Event> { backStackEntry ->
+                val route: Route.Event = backStackEntry.toRoute()
+                val eventId = remember(route.eventIdB32) { Base32.decode(route.eventIdB32) ?: ByteArray(0) }
+                // Same shared-instance posture as Route.Idea above.
+                val roomEntry = remember(backStackEntry) { navController.getBackStackEntry(Route.Room(route.roomIdB32)) }
+                val viewModel: RoomViewModel = viewModel(
+                    viewModelStoreOwner = roomEntry,
+                    factory = viewModelFactory {
+                        initializer { RoomViewModel(Base32.decode(route.roomIdB32) ?: ByteArray(0), container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
+                    },
+                )
+                EventDetailScreen(viewModel = viewModel, eventId = eventId, onBack = { navController.popBackStack() })
             }
             composable<Route.Members> { backStackEntry ->
                 val route: Route.Members = backStackEntry.toRoute()
