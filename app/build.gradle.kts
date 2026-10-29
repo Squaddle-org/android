@@ -172,6 +172,7 @@ dependencies {
     testImplementation(libs.androidx.test.runner)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.espresso.core)
     testImplementation(libs.work.testing)
     testImplementation(platform(libs.compose.bom))
     testImplementation("androidx.compose.ui:ui-test-junit4")
