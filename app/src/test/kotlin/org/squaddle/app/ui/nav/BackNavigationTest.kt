@@ -146,6 +146,7 @@ class BackNavigationTest {
         val viewModel = OnboardingViewModel(
             crypto = org.squaddle.app.data.FakeCrypto,
             identityVault = org.squaddle.app.crypto.FakeIdentityVault(),
+            displayNameStore = org.squaddle.app.settings.FakeDisplayNameStore(),
             openSession = { _, _, _ -> FakeSyncGateway() },
         )
 

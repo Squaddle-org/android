@@ -94,6 +94,12 @@ public interface SyncGateway {
 
     public suspend fun membershipHistory(room: ByteArray): MembershipHistory
 
+    /** `ProfileSet` is "own only (per-room display name)" ([org.squaddle.core.ops.RoomState]'s
+     * own doc comment) - every room a user is in has its own [emoji]/[displayName] pair, there is
+     * no single global profile. [RealSyncGateway.createRoom]/`joinViaLink` call this automatically
+     * right after success, using whatever name the user chose during onboarding. */
+    public suspend fun setProfile(room: ByteArray, displayName: String, emoji: String?): Boolean
+
     public suspend fun createIdea(room: ByteArray, title: String, desc: String?): Boolean
     public suspend fun editIdea(room: ByteArray, id: ByteArray, field: String, value: Any?): Boolean
     public suspend fun deleteIdea(room: ByteArray, id: ByteArray): Boolean

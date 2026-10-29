@@ -15,7 +15,9 @@ import org.squaddle.app.data.SyncGateway
 import org.squaddle.app.push.AndroidRoomMuteStore
 import org.squaddle.app.push.RoomMuteStore
 import org.squaddle.app.settings.AndroidDeveloperSettingsStore
+import org.squaddle.app.settings.AndroidDisplayNameStore
 import org.squaddle.app.settings.DeveloperSettingsStore
+import org.squaddle.app.settings.DisplayNameStore
 import org.squaddle.app.store.AndroidAppLocalStore
 import org.squaddle.app.store.AppLocalStore
 import org.squaddle.core.crypto.Crypto
@@ -39,6 +41,7 @@ public class AppContainer(private val context: Context) {
     public val appLocalStore: AppLocalStore = AndroidAppLocalStore(context)
     public val developerSettingsStore: DeveloperSettingsStore = AndroidDeveloperSettingsStore(context)
     public val roomMuteStore: RoomMuteStore = AndroidRoomMuteStore(context)
+    public val displayNameStore: DisplayNameStore = AndroidDisplayNameStore(context)
     public val backupManager: BackupManager by lazy { AndroidBackupManager(context, crypto) }
     public val backupPassphraseVault: BackupPassphraseVault = AndroidBackupPassphraseVault(context)
     public val autoBackupSettings: AutoBackupSettingsStore = AndroidAutoBackupSettingsStore(context)
@@ -88,7 +91,7 @@ public class AppContainer(private val context: Context) {
     /** The real [SyncGateway] for the current [session] - every screen past onboarding gets its
      * gateway this way rather than constructing [RealSyncGateway] itself. */
     public fun syncGateway(): SyncGateway =
-        RealSyncGateway(requireNotNull(session) { "no session - onboarding not completed yet" }, appLocalStore, effectiveRelayHost)
+        RealSyncGateway(requireNotNull(session) { "no session - onboarding not completed yet" }, appLocalStore, effectiveRelayHost, displayNameStore)
 
     public companion object {
         private const val CORE_DB_NAME = "squaddle_core.db"

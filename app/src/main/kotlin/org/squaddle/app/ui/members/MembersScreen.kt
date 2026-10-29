@@ -104,7 +104,7 @@ private fun SectionHeader(text: String) {
 private fun PendingRow(member: MemberSummary, onApprove: () -> Unit, onReject: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("member_${Base32.encode(member.user)}")) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(shortKey(member.user), modifier = Modifier.weight(1f))
+            Text(displayLabel(member), modifier = Modifier.weight(1f))
             if (member.canReject) TextButton(onClick = onReject) { Text(stringResource(R.string.members_reject)) }
             if (member.canApprove) TextButton(onClick = onApprove) { Text(stringResource(R.string.members_approve)) }
         }
@@ -125,7 +125,7 @@ private fun MemberRow(
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("member_${Base32.encode(member.user)}")) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(shortKey(member.user))
+                Text(displayLabel(member))
                 Text(roleLabel(member.role), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (hasAnyAction) {
@@ -165,3 +165,8 @@ private fun roleLabel(role: Role): String = when (role) {
 }
 
 private fun shortKey(user: ByteArray): String = Base32.encode(user).take(12)
+
+/** The name this member chose via [org.squaddle.app.data.SyncGateway.setProfile], or a shortened
+ * key for a member who never has (an older client's own join, say) - never the raw/truncated key
+ * when a real name is available, which is what every member row showed before this fix. */
+private fun displayLabel(member: MemberSummary): String = member.displayName?.takeIf { it.isNotBlank() } ?: shortKey(member.user)

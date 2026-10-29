@@ -171,6 +171,8 @@
     <string name="settings_automatic_backups">Automatic backups</string>
     <string name="settings_interval_hours_label">Interval (hours)</string>
     <string name="settings_passphrase_label">Passphrase</string>
+    <string name="settings_show_passphrase">Show passphrase</string>
+    <string name="settings_hide_passphrase">Hide passphrase</string>
     <string name="settings_protect_backup_title">Protect this backup</string>
     <string name="settings_enter_backup_passphrase_title">Enter the backup\'s passphrase</string>
     <string name="settings_choose_auto_backup_passphrase_title">Choose a passphrase for automatic backups</string>

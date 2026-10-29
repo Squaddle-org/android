@@ -11,6 +11,7 @@ import org.junit.Before
 import org.squaddle.app.crypto.FakeIdentityVault
 import org.squaddle.app.data.FakeCrypto
 import org.squaddle.app.data.FakeSyncGateway
+import org.squaddle.app.settings.FakeDisplayNameStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -32,10 +33,15 @@ class OnboardingViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(vault: FakeIdentityVault = FakeIdentityVault(), gateway: FakeSyncGateway = FakeSyncGateway()): OnboardingViewModel =
+    private fun viewModel(
+        vault: FakeIdentityVault = FakeIdentityVault(),
+        gateway: FakeSyncGateway = FakeSyncGateway(),
+        displayNameStore: FakeDisplayNameStore = FakeDisplayNameStore(),
+    ): OnboardingViewModel =
         OnboardingViewModel(
             crypto = FakeCrypto,
             identityVault = vault,
+            displayNameStore = displayNameStore,
             openSession = { _, _, _ -> gateway },
         )
 
@@ -75,6 +81,23 @@ class OnboardingViewModelTest {
 
         assertTrue(vault.hasIdentity())
         assertEquals(OnboardingUiState.Done, vm.uiState.value)
+    }
+
+    @Test
+    fun finishPersistsTheChosenDisplayNameForLaterRoomsToUse() = runTest(testDispatcher) {
+        val displayNameStore = FakeDisplayNameStore()
+        val vm = viewModel(displayNameStore = displayNameStore)
+        vm.startCreate()
+        vm.toggleWroteItDown()
+        vm.confirmSeedWritten()
+        vm.updateDisplayName("Alex")
+        vm.finish()
+        advanceUntilIdle()
+
+        // RealSyncGateway.createRoom/joinViaLink/restoreKnownRooms all read this back afterward
+        // (DisplayNameStore's own doc comment) - persisting it here is what makes MembersScreen
+        // ever show a real name instead of falling back to a member's raw key.
+        assertEquals("Alex", displayNameStore.displayName())
     }
 
     @Test

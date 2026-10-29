@@ -8,12 +8,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.squaddle.app.data.SyncGateway
 import org.squaddle.app.data.friendlyMessage
+import org.squaddle.core.encoding.Hex
 import org.squaddle.core.membership.Role
 import org.squaddle.core.sync.PushOutcome
 
 public data class MemberSummary(
     public val user: ByteArray,
     public val role: Role,
+    /** `null` until this member has ever set one for this room ([org.squaddle.app.data.SyncGateway.setProfile]) -
+     * [org.squaddle.app.ui.members.MembersScreen] falls back to a shortened key in that case. */
+    public val displayName: String?,
     public val canApprove: Boolean,
     public val canReject: Boolean,
     public val canKick: Boolean,
@@ -58,12 +62,17 @@ public class MembersViewModel(
             val myRole = current.roleOf(myUserKey)
             val isOwner = myRole == Role.OWNER
             val isAdminOrOwner = myRole == Role.OWNER || myRole == Role.ADMIN
+            // RoomState.profiles, not MembershipState's own territory - a member's chosen
+            // ProfileSet lives in the content-plane op log, not the membership log
+            // (RoomState.kt's own "own only (per-room display name)" doc comment).
+            val profiles = gateway.materialize(room).state.profiles
 
             val members = current.members().map { member ->
                 val isSelf = member.user.contentEquals(myUserKey)
                 MemberSummary(
                     user = member.user,
                     role = member.role,
+                    displayName = profiles[Hex.encode(member.user)]?.displayName,
                     canApprove = isAdminOrOwner && member.role == Role.PENDING,
                     canReject = isAdminOrOwner && member.role == Role.PENDING,
                     // Pending users get dedicated approve/reject actions - offering a redundant

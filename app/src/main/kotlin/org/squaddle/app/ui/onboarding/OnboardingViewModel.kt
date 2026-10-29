@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.squaddle.app.crypto.IdentityRecord
 import org.squaddle.app.crypto.IdentityVault
 import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.settings.DisplayNameStore
 import org.squaddle.core.crypto.Crypto
 import org.squaddle.core.crypto.KeyPair
 import org.squaddle.core.identity.Bip39
@@ -38,6 +39,7 @@ public sealed interface OnboardingUiState {
 public class OnboardingViewModel(
     private val crypto: Crypto,
     private val identityVault: IdentityVault,
+    private val displayNameStore: DisplayNameStore,
     private val openSession: (UserIdentity, KeyPair, DeviceCert) -> SyncGateway,
 ) : ViewModel() {
 
@@ -126,6 +128,10 @@ public class OnboardingViewModel(
         }
         _uiState.value = OnboardingUiState.Saving
         viewModelScope.launch {
+            // Saved before the session even opens: RealSyncGateway.createRoom/joinViaLink/
+            // restoreKnownRooms all read this back to set each room's own profile automatically
+            // right after success (ProfileSet is per-room, there's no single global profile).
+            if (state.displayName.isNotBlank()) displayNameStore.setDisplayName(state.displayName)
             val device = crypto.signSeedKeypair(crypto.randomBytes(32))
             val label = android.os.Build.MODEL ?: "Device"
             val issuedAt = nowUnixSeconds()

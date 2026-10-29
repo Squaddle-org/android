@@ -14,6 +14,7 @@ import org.robolectric.annotation.Config
 import org.squaddle.app.crypto.FakeIdentityVault
 import org.squaddle.app.data.FakeCrypto
 import org.squaddle.app.data.FakeSyncGateway
+import org.squaddle.app.settings.FakeDisplayNameStore
 
 /** Real Compose semantics on the JVM via Robolectric - no emulator/device needed (see the plan's
  * own justification). Drives the create-identity path end to end through the actual Composables,
@@ -37,6 +38,7 @@ class OnboardingScreenTest {
         val viewModel = OnboardingViewModel(
             crypto = FakeCrypto,
             identityVault = vault,
+            displayNameStore = FakeDisplayNameStore(),
             openSession = { _, _, _ -> gateway },
         )
 

@@ -54,6 +54,7 @@ public class RealSyncGateway(
     private val session: AppSession,
     private val appLocalStore: AppLocalStore,
     private val defaultRelayHost: String,
+    private val displayNameStore: org.squaddle.app.settings.DisplayNameStore,
 ) : SyncGateway {
 
     private fun syncClientForRoom(room: ByteArray): SyncClient {
@@ -156,7 +157,26 @@ public class RealSyncGateway(
         if (outcome != PushOutcome.Ok) throw IllegalStateException("createRoom failed: $outcome")
         val now = System.currentTimeMillis()
         appLocalStore.insertKnownRoom(room, roomName, defaultRelayHost, now, now)
+        applyStoredDisplayName(room)
         room
+    }
+
+    /** Best-effort: applies whatever display name the user chose during onboarding to a just-
+     * created/joined/restored room - never fails [createRoom]/`joinViaLink`/[restoreKnownRooms]
+     * themselves if this one op doesn't land (same outbox-retry safety net every other
+     * `enqueueAndPush` call already has; a missing profile just means [MembersScreen] falls back
+     * to showing the member's key, not a crash or a blocked join). A blank/absent stored name
+     * (the user left onboarding's name field... actually that field is required non-blank to
+     * proceed - this is just defensive) is simply skipped, nothing to set yet. */
+    private suspend fun applyStoredDisplayName(room: ByteArray) {
+        val name = displayNameStore.displayName()?.takeIf { it.isNotBlank() } ?: return
+        try {
+            setProfile(room, name, emoji = null)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Best-effort, see doc comment above.
+        }
     }
 
     /** Seed-only restore: lists every room this user holds an active role in on [defaultRelayHost]
@@ -173,6 +193,7 @@ public class RealSyncGateway(
         for (ref in outcome.rooms) {
             appLocalStore.insertKnownRoom(ref.roomId, "Squaddle room", ref.relayHost, now, now)
             pull(ref.roomId)
+            applyStoredDisplayName(ref.roomId)
         }
         outcome.rooms.size
     }
@@ -473,9 +494,16 @@ public class RealSyncGateway(
             val roomName = peekInviteRoomName(link) ?: "Squaddle room"
             val now = System.currentTimeMillis()
             appLocalStore.insertKnownRoom(link.roomId, roomName, link.relayHost, now, now)
+            // A no-approval join can set its profile right away; an approval-required one has no
+            // epoch key yet (PENDING members hold no content-plane key at all, §3.3) - this call
+            // simply fails best-effort in that case, same as any other enqueueAndPush would.
+            applyStoredDisplayName(link.roomId)
         }
         outcome
     }
+
+    override suspend fun setProfile(room: ByteArray, displayName: String, emoji: String?): Boolean =
+        enqueueAndPush(room, OpBody.ProfileSet(displayName, emoji))
 
     override suspend fun outboxCount(): Int =
         appLocalStore.allKnownRooms().sumOf { session.store.outboxFor(it.room_id).size }

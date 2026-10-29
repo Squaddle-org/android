@@ -14,8 +14,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -29,6 +32,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -255,6 +261,7 @@ private fun AutoBackupSection(enabled: Boolean, intervalHours: Int, onEnable: ()
 @Composable
 private fun PassphraseDialog(title: String, confirmLabel: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var passphrase by remember { mutableStateOf("") }
+    var passphraseVisible by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -263,6 +270,17 @@ private fun PassphraseDialog(title: String, confirmLabel: String, onDismiss: () 
                 value = passphrase,
                 onValueChange = { passphrase = it },
                 label = { Text(stringResource(R.string.settings_passphrase_label)) },
+                visualTransformation = if (passphraseVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                trailingIcon = {
+                    IconButton(onClick = { passphraseVisible = !passphraseVisible }, modifier = Modifier.testTag("togglePassphraseVisibility")) {
+                        Icon(
+                            if (passphraseVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = stringResource(if (passphraseVisible) R.string.settings_hide_passphrase else R.string.settings_show_passphrase),
+                        )
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().testTag("passphraseField"),
             )
         },

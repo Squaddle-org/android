@@ -93,6 +93,13 @@ public class FakeSyncGateway : SyncGateway {
 
     override suspend fun myRole(room: ByteArray): Role? = myRoleResult
 
+    public val profileSets: MutableList<Pair<String, String?>> = mutableListOf()
+
+    override suspend fun setProfile(room: ByteArray, displayName: String, emoji: String?): Boolean {
+        profileSets += displayName to emoji
+        return opOutcome
+    }
+
     override suspend fun createIdea(room: ByteArray, title: String, desc: String?): Boolean {
         createdIdeas += title to desc
         return opOutcome

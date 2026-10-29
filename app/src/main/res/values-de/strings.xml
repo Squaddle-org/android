@@ -171,6 +171,8 @@
     <string name="settings_automatic_backups">Automatische Sicherungen</string>
     <string name="settings_interval_hours_label">Intervall (Stunden)</string>
     <string name="settings_passphrase_label">Passphrase</string>
+    <string name="settings_show_passphrase">Passphrase anzeigen</string>
+    <string name="settings_hide_passphrase">Passphrase verbergen</string>
     <string name="settings_protect_backup_title">Diese Sicherung schützen</string>
     <string name="settings_enter_backup_passphrase_title">Passphrase der Sicherung eingeben</string>
     <string name="settings_choose_auto_backup_passphrase_title">Passphrase für automatische Sicherungen wählen</string>
