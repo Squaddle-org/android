@@ -237,9 +237,15 @@ NavHost-level routing itself (one real screen popping to the one behind it) need
 - **Root (rooms list) back exits the app**: default `NavHost` behavior (nothing left to pop) -
   not re-verified in this pass since it was already exercised earlier in the session (plain
   `KEYCODE_BACK` from the empty rooms list backgrounds the app, as it did before this rewrite).
-- **Entered via App Link / invite join**: `navigateToJoin` pushes `Route.Join` on top of the
-  always-present `Route.RoomsList` start destination, so back from the Join screen lands on the
-  rooms list by construction - not yet re-walked with a real App Link intent on this AVD.
+- **Entered via App Link / invite join**: confirmed with a real invite link generated on-device
+  (`Invite` screen → `Share invite link`, link pulled via `uiautomator dump` rather than typed by
+  hand) and a real `am start -a android.intent.action.VIEW -d <link> -n org.squaddle/.app.MainActivity`
+  simulating a cold App Link launch (`-n` targets the app directly, standing in for a *verified*
+  App Link on a release-signed install - `assetlinks.json` verification itself can't succeed
+  against this debug-signed sideload, so plain `-d` alone opens Chrome instead, as expected).
+  Landed directly on "Join this room? TestRoom"; back from there landed on the rooms list, not an
+  exit - `navigateToJoin` pushing `Route.Join` on top of the always-present `Route.RoomsList`
+  start destination works as designed.
 - **Entered via a notification**: unchanged from before this rewrite -
   `SyncAllRoomsWorker`-posted notifications still just open the app at the rooms list (a
   pre-existing, documented M4b scope cut, see `Route.kt`'s comment on the `Join` route); this task
