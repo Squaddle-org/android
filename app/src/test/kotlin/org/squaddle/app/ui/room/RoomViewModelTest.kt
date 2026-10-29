@@ -368,4 +368,31 @@ class RoomViewModelTest {
 
         assertTrue(vm.uiState.value.isMuted)
     }
+
+    @Test
+    fun loadsTheRoomTierFromGetLimits() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+            getLimitsResult = Result.success(org.squaddle.core.sync.RoomLimits("boosted", 100, 50, null, 1_073_741_824L, 25, null))
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        assertEquals("boosted", vm.uiState.value.tier)
+    }
+
+    @Test
+    fun aFailedLimitsFetchLeavesTierNullWithoutBlockingTheRestOfTheScreen() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+            getLimitsResult = Result.failure(RuntimeException("relay unreachable"))
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        assertEquals(null, vm.uiState.value.tier)
+        assertFalse(vm.uiState.value.isLoading)
+    }
 }

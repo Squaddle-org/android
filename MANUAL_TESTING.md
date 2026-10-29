@@ -119,3 +119,25 @@ instead.
 cold-start block in `MainActivity.kt`'s `SignedInApp` and must both still succeed independently
 (one failing must not block the other - confirmed by code review, both are caught
 independently; a device offline at cold start recovers both on the next cold start).
+
+## Item 8: Limits UI + voucher redemption
+
+1. Open a room; confirm a small tier label ("Free") appears under the room name in the top bar
+   within a moment of opening (it loads slightly after the rest of the screen - a slow/failed
+   limits fetch must never block ideas/events from showing).
+2. Start a local relay with `-limits hosted` (not the default `-limits none`, which always
+   reports `unlimited`) and mint a voucher: `$RELAY voucher mint -tier=boosted -db <path>`.
+3. In the room, tap the gift-box icon in the top bar (Redeem voucher); enter the minted code,
+   tap Redeem. Confirm "This room is now tier: boosted" and that the room's tier badge updates
+   to "Boosted" after going back.
+4. Redeem the same code again (or any already-redeemed code); confirm a clean error dialog
+   ("voucher not found or already redeemed" - the relay's own message, not a crash).
+5. Try an unknown/malformed code; confirm the same clean-error behavior.
+6. Against a room at its member cap (`-limits hosted`'s free tier caps at 20 members - fill it
+   via the CLI harness or multiple test accounts), have a new user try to join; confirm the Join
+   screen shows "This room is full. Ask an admin to boost it for more space." instead of the
+   relay's raw `room_full` message.
+7. Against a room at its active-invite cap, try creating one more invite; confirm the Invite
+   screen shows "This room has reached its invite limit. Ask an admin to boost it."
+8. Approving a pending member into a full room should show the same friendly `room_full` copy on
+   the Members screen's action-error dialog.

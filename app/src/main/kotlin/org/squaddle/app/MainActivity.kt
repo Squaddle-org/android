@@ -99,6 +99,7 @@ private sealed interface RoomSubScreen {
     data object Ideas : RoomSubScreen
     data object Members : RoomSubScreen
     data object Invite : RoomSubScreen
+    data object Voucher : RoomSubScreen
 }
 
 @Composable
@@ -300,6 +301,15 @@ private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: or
                 )
                 InviteScreen(viewModel = inviteViewModel, onBack = { subScreen = RoomSubScreen.Ideas })
             }
+            is RoomSubScreen.Voucher -> {
+                val voucherViewModel: org.squaddle.app.ui.voucher.VoucherRedeemViewModel = viewModel(
+                    key = "voucher_${Base32.encode(roomId)}",
+                    factory = viewModelFactory {
+                        initializer { org.squaddle.app.ui.voucher.VoucherRedeemViewModel(roomId, gateway) }
+                    },
+                )
+                org.squaddle.app.ui.voucher.VoucherRedeemScreen(viewModel = voucherViewModel, onBack = { subScreen = RoomSubScreen.Ideas })
+            }
             is RoomSubScreen.Ideas -> {
                 val viewModel: RoomViewModel = viewModel(
                     key = Base32.encode(roomId),
@@ -313,6 +323,7 @@ private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: or
                     onBack = { openRoomId = null },
                     onOpenMembers = { subScreen = RoomSubScreen.Members },
                     onOpenInvite = { subScreen = RoomSubScreen.Invite },
+                    onOpenVoucherRedeem = { subScreen = RoomSubScreen.Voucher },
                 )
             }
         }

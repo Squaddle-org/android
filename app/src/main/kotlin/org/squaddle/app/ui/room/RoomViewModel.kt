@@ -60,6 +60,9 @@ public data class RoomUiState(
      * `canKick`/`canPromote` are, rather than re-derived in a Composable. */
     public val canCreateEvent: Boolean = false,
     public val selectedTab: RoomTab = RoomTab.IDEAS,
+    /** `null` while still loading or if the limits fetch failed (best-effort, never blocks the
+     * rest of the screen) - PROTOCOL.md §8.1's `"free"|"boosted"|"unlimited"|"custom"`. */
+    public val tier: String? = null,
 )
 
 /**
@@ -135,6 +138,13 @@ public class RoomViewModel(
                 isLoading = false, ideas = ideas, comments = comments,
                 events = events, canCreateEvent = canCreateEvent,
             )
+
+            // Best-effort, fetched after the rest of the screen already has what it needs -
+            // a failed/slow limits fetch (relay down, or a self-hosted relay with -limits=none
+            // that still answers `tier: "unlimited"` just fine) must never block ideas/events
+            // from showing. null (loading-forever or failed) just means the badge stays hidden.
+            val tier = gateway.getLimits(room).getOrNull()?.tier
+            _uiState.value = _uiState.value.copy(tier = tier)
         }
     }
 

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -73,6 +74,7 @@ public fun RoomScreen(
     onBack: () -> Unit,
     onOpenMembers: () -> Unit = {},
     onOpenInvite: () -> Unit = {},
+    onOpenVoucherRedeem: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -83,7 +85,18 @@ public fun RoomScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(roomName) },
+                title = {
+                    Column {
+                        Text(roomName)
+                        state.tier?.let { tier ->
+                            Text(
+                                tier.replaceFirstChar { it.uppercase() },
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.testTag("roomTierBadge"),
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
@@ -94,6 +107,9 @@ public fun RoomScreen(
                         } else {
                             Icon(Icons.Filled.Notifications, contentDescription = "Mute notifications")
                         }
+                    }
+                    IconButton(onClick = onOpenVoucherRedeem, modifier = Modifier.testTag("openVoucherRedeemButton")) {
+                        Icon(Icons.Filled.CardGiftcard, contentDescription = "Redeem voucher")
                     }
                     IconButton(onClick = onOpenMembers) { Icon(Icons.Filled.People, contentDescription = "Members") }
                     IconButton(onClick = onOpenInvite) { Icon(Icons.Filled.MailOutline, contentDescription = "Invite") }
