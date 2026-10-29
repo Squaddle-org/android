@@ -131,4 +131,10 @@ public interface SyncGateway {
      * reports) - the voucher screen wants the same full [RoomLimits] shape either way, not a
      * separate "just the tier" result type. */
     public suspend fun redeemVoucher(room: ByteArray, code: String): Result<RoomLimits>
+
+    /** Total unsent ops across every known room (core's `LocalStore.outboxFor`, summed) - M4b
+     * item 11's offline/outbox banner uses "non-zero" as its one signal: a stuck outbox is
+     * exactly what "you're offline, or sync is failing" looks like from the client's own point
+     * of view, without needing a separate `ConnectivityManager` listener. */
+    public suspend fun outboxCount(): Int
 }

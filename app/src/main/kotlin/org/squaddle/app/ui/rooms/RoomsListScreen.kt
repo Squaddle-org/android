@@ -78,16 +78,15 @@ public fun RoomsListScreen(
             }
         },
     ) { padding ->
-        if (state.rooms.isEmpty() && !state.isRefreshing) {
-            EmptyRoomsState(modifier = Modifier.padding(padding))
-        } else {
-            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                if (state.isRefreshing) {
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                    }
-                }
-                LazyColumn {
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = state.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
+            if (state.rooms.isEmpty() && !state.isRefreshing) {
+                EmptyRoomsState()
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(state.rooms, key = { Base32.encode(it.roomId) }) { room ->
                         RoomRow(room, onClick = { onOpenRoom(room.roomId) })
                     }

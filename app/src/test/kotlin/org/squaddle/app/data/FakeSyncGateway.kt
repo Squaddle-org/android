@@ -23,6 +23,7 @@ public class FakeSyncGateway : SyncGateway {
     public var getLimitsResult: Result<org.squaddle.core.sync.RoomLimits> =
         Result.success(org.squaddle.core.sync.RoomLimits("free", 20, 20, 90, null, 5, null))
     public var redeemVoucherResult: Result<org.squaddle.core.sync.RoomLimits> = getLimitsResult
+    public var outboxCountResult: Int = 0
     public var pullOutcome: SyncOutcome = SyncOutcome.Ok
     public var materialization: RoomMaterialization = RoomMaterialization(RoomState(), emptyMap())
     public var history: MembershipHistory = MembershipHistory.build(emptyList(), org.squaddle.core.membership.MembershipStateImpl.empty(FakeCrypto))
@@ -82,6 +83,8 @@ public class FakeSyncGateway : SyncGateway {
     override suspend fun getLimits(room: ByteArray): Result<org.squaddle.core.sync.RoomLimits> = getLimitsResult
 
     override suspend fun redeemVoucher(room: ByteArray, code: String): Result<org.squaddle.core.sync.RoomLimits> = redeemVoucherResult
+
+    override suspend fun outboxCount(): Int = outboxCountResult
 
     override suspend fun membershipHistory(room: ByteArray): MembershipHistory = history
 

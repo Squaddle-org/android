@@ -395,4 +395,142 @@ class RoomViewModelTest {
         assertEquals(null, vm.uiState.value.tier)
         assertFalse(vm.uiState.value.isLoading)
     }
+
+    @Test
+    fun pullToRefreshSetsIsRefreshingWhileRunningThenClearsIt() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isRefreshing)
+
+        vm.pullToRefresh()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isRefreshing, "must clear isRefreshing once the refresh actually finishes")
+    }
+
+    @Test
+    fun plainRefreshNeverSetsIsRefreshing() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        vm.refresh()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isRefreshing, "button-triggered refresh() must not flash the pull-to-refresh indicator")
+    }
+
+    @Test
+    fun toggleVoteAppliesOptimisticUpdateBeforeTheNetworkCallResolves() = runTest(testDispatcher) {
+        val ideaA = idea(ByteArray(16) { 1 }, myKey, "Idea A")
+        val state = RoomState(ideas = mapOf(key(ideaA.id) to ideaA))
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(state, emptyMap())
+            myRoleResult = Role.MEMBER
+            opOutcome = true
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+        assertEquals(0, vm.uiState.value.ideas.single().myVote)
+
+        vm.toggleVote(ideaA.id, 1)
+
+        // No advanceUntilIdle yet - this is the synchronous optimistic update, before the
+        // launched coroutine (and its network call) has run at all.
+        val optimistic = vm.uiState.value.ideas.single()
+        assertEquals(1, optimistic.myVote)
+        assertEquals(1, optimistic.score)
+    }
+
+    @Test
+    fun toggleVoteRollsBackOnFailureAndSetsActionError() = runTest(testDispatcher) {
+        val ideaA = idea(ByteArray(16) { 1 }, myKey, "Idea A")
+        val state = RoomState(ideas = mapOf(key(ideaA.id) to ideaA))
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(state, emptyMap())
+            myRoleResult = Role.MEMBER
+            opOutcome = false
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        vm.toggleVote(ideaA.id, 1)
+        advanceUntilIdle()
+
+        val rolledBack = vm.uiState.value.ideas.single()
+        assertEquals(0, rolledBack.myVote)
+        assertEquals(0, rolledBack.score)
+        assertTrue(vm.uiState.value.actionError != null)
+    }
+
+    @Test
+    fun addCommentAppendsOptimisticCommentBeforeTheNetworkCallResolves() = runTest(testDispatcher) {
+        val ideaA = idea(ByteArray(16) { 1 }, myKey, "Idea A")
+        val state = RoomState(ideas = mapOf(key(ideaA.id) to ideaA))
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(state, emptyMap())
+            myRoleResult = Role.MEMBER
+            opOutcome = true
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+        vm.selectIdea(ideaA.id)
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.comments.isEmpty())
+
+        vm.addComment(ideaA.id, "nice idea!")
+
+        val optimistic = vm.uiState.value.comments
+        assertEquals(1, optimistic.size)
+        assertEquals("nice idea!", optimistic.single().text)
+        assertFalse(optimistic.single().canDelete, "an optimistic comment's own canDelete is unknown until the real one replaces it")
+    }
+
+    @Test
+    fun addCommentRollsBackOnFailureAndSetsActionError() = runTest(testDispatcher) {
+        val ideaA = idea(ByteArray(16) { 1 }, myKey, "Idea A")
+        val state = RoomState(ideas = mapOf(key(ideaA.id) to ideaA))
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(state, emptyMap())
+            myRoleResult = Role.MEMBER
+            opOutcome = false
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+        vm.selectIdea(ideaA.id)
+        advanceUntilIdle()
+
+        vm.addComment(ideaA.id, "nice idea!")
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.comments.isEmpty(), "a failed post must roll back to the pre-optimistic snapshot")
+        assertTrue(vm.uiState.value.actionError != null)
+    }
+
+    @Test
+    fun dismissActionErrorClearsIt() = runTest(testDispatcher) {
+        val ideaA = idea(ByteArray(16) { 1 }, myKey, "Idea A")
+        val state = RoomState(ideas = mapOf(key(ideaA.id) to ideaA))
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(state, emptyMap())
+            myRoleResult = Role.MEMBER
+            opOutcome = false
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+        vm.toggleVote(ideaA.id, 1)
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.actionError != null)
+
+        vm.dismissActionError()
+
+        assertEquals(null, vm.uiState.value.actionError)
+    }
 }

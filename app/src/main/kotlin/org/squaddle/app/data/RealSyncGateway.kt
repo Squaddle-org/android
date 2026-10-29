@@ -472,4 +472,7 @@ public class RealSyncGateway(
         }
         outcome
     }
+
+    override suspend fun outboxCount(): Int =
+        appLocalStore.allKnownRooms().sumOf { session.store.outboxFor(it.room_id).size }
 }

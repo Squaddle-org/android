@@ -169,24 +169,42 @@ public fun RoomScreen(
                         )
                     }
                 }
-                state.selectedTab == RoomTab.EVENTS -> if (state.events.isEmpty()) {
-                    EmptyEventsState()
-                } else {
-                    val shareEventLabel = stringResource(R.string.room_share_event)
-                    EventsList(
-                        events = state.events,
-                        onRsvp = { eventId, value -> viewModel.rsvp(eventId, value) },
-                        onCancel = { eventId -> viewModel.cancelEvent(eventId) },
-                        onAddToCalendar = { event -> context.startActivity(calendarInsertIntent(event)) },
-                        onShareIcs = { event -> context.startActivity(Intent.createChooser(shareIcsIntent(context, event), shareEventLabel)) },
-                    )
+                // Pull-to-refresh only applies to the two list views, not the idea-detail screen
+                // above (that one's own content doesn't scroll as a plain list) - same split
+                // RoomsListScreen.kt uses.
+                state.selectedTab == RoomTab.EVENTS -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = viewModel::pullToRefresh,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    if (state.events.isEmpty()) {
+                        EmptyEventsState()
+                    } else {
+                        val shareEventLabel = stringResource(R.string.room_share_event)
+                        EventsList(
+                            events = state.events,
+                            onRsvp = { eventId, value -> viewModel.rsvp(eventId, value) },
+                            onCancel = { eventId -> viewModel.cancelEvent(eventId) },
+                            onAddToCalendar = { event -> context.startActivity(calendarInsertIntent(event)) },
+                            onShareIcs = { event -> context.startActivity(Intent.createChooser(shareIcsIntent(context, event), shareEventLabel)) },
+                        )
+                    }
                 }
-                state.ideas.isEmpty() -> EmptyIdeasState()
-                else -> IdeasList(
-                    ideas = state.ideas,
-                    onSelect = { viewModel.selectIdea(it) },
-                    onVote = { ideaId, dir -> viewModel.toggleVote(ideaId, dir) },
-                )
+                else -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = viewModel::pullToRefresh,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    if (state.ideas.isEmpty()) {
+                        EmptyIdeasState()
+                    } else {
+                        IdeasList(
+                            ideas = state.ideas,
+                            onSelect = { viewModel.selectIdea(it) },
+                            onVote = { ideaId, dir -> viewModel.toggleVote(ideaId, dir) },
+                        )
+                    }
+                }
             }
         }
     }
@@ -223,6 +241,18 @@ public fun RoomScreen(
                 viewModel.createEvent(ideaId = ideaToConvert, title = title, start = start, end = end, tz = tz, location = location, allDay = allDay)
                 convertIdeaId = null
             },
+        )
+    }
+
+    // Rollback error from an optimistic vote/comment that failed to push (RoomViewModel.toggleVote/
+    // addComment) - this message is ViewModel-authored, not a Composable string, so it's not run
+    // through stringResource (see MANUAL_TESTING.md item 10's own documented scope boundary).
+    state.actionError?.let { error ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissActionError,
+            title = { Text(stringResource(R.string.members_action_failed_title)) },
+            text = { Text(error) },
+            confirmButton = { TextButton(onClick = viewModel::dismissActionError) { Text(stringResource(R.string.action_ok)) } },
         )
     }
 }

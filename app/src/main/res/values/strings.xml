@@ -38,6 +38,10 @@
     <!-- MainActivity.kt's SignedInApp - shown only when PushRegistrar.noDistributorInstalled(). -->
     <string name="push_install_ntfy_hint">Install ntfy for instant updates - without it, Squaddle checks for new activity every few hours.</string>
 
+    <!-- MainActivity.kt's SignedInApp - shown whenever SyncGateway.outboxCount() > 0 (offline, or
+         sync is otherwise stuck); takes priority over push_install_ntfy_hint in the same banner slot. -->
+    <string name="outbox_pending_hint">%1$d change(s) waiting to sync - check your connection.</string>
+
     <!-- ui/onboarding/OnboardingScreen.kt -->
     <string name="onboarding_tagline">No accounts, no passwords. Your identity is a seed phrase only you hold.</string>
     <string name="onboarding_create_identity">Create a new identity</string>

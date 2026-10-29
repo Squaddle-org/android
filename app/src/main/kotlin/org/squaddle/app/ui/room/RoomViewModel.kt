@@ -50,6 +50,12 @@ public enum class RoomTab { IDEAS, EVENTS }
 
 public data class RoomUiState(
     public val isLoading: Boolean = true,
+    /** Pull-to-refresh's own flag - distinct from [isLoading] (the initial, content-not-shown-yet
+     * spinner): a pull gesture keeps the existing ideas/events visible underneath Material3's
+     * own refresh indicator, set only by [RoomViewModel.pullToRefresh], never by the many other
+     * call sites that already call [RoomViewModel.refresh] after every action (a vote, a new
+     * comment, ...) - those must not flash the pull indicator on every tap. */
+    public val isRefreshing: Boolean = false,
     public val ideas: List<IdeaSummary> = emptyList(),
     public val selectedIdeaId: ByteArray? = null,
     public val comments: List<CommentSummary> = emptyList(),
@@ -63,6 +69,10 @@ public data class RoomUiState(
     /** `null` while still loading or if the limits fetch failed (best-effort, never blocks the
      * rest of the screen) - PROTOCOL.md §8.1's `"free"|"boosted"|"unlimited"|"custom"`. */
     public val tier: String? = null,
+    /** Set only by [RoomViewModel.toggleVote]/[RoomViewModel.addComment]'s own rollback path -
+     * both apply their change to [ideas]/[comments] optimistically before the network call
+     * resolves, then restore the pre-change snapshot and set this if the call fails. */
+    public val actionError: String? = null,
 )
 
 /**
@@ -97,55 +107,69 @@ public class RoomViewModel(
     }
 
     public fun refresh() {
+        viewModelScope.launch { doRefresh() }
+    }
+
+    /** The pull-to-refresh gesture's own entry point (`RoomScreen.kt`'s `PullToRefreshBox`) -
+     * awaits [doRefresh] directly (rather than a fire-and-forget [viewModelScope.launch]) so
+     * [RoomUiState.isRefreshing] reliably flips back to `false` only once the refresh actually
+     * finishes, matching Material3's own `PullToRefreshBox` contract. */
+    public fun pullToRefresh() {
         viewModelScope.launch {
-            gateway.pull(room)
-            val materialization = gateway.materialize(room)
-            val myRole = gateway.myRole(room)
-            val isAdminOrOwner = myRole == Role.ADMIN || myRole == Role.OWNER
-            val myKeyHex = myUserKey.toKey()
-
-            val ideas = materialization.state.ideas.values
-                .filterNot { it.deleted }
-                .map { idea ->
-                    val ideaIdHex = idea.id.toKey()
-                    val score = materialization.state.votes
-                        .filterKeys { it.startsWith(ideaIdHex) }
-                        .values.sumOf { it.value }
-                    val myVote = materialization.state.votes[ideaIdHex + myKeyHex]?.value ?: 0
-                    IdeaSummary(
-                        id = idea.id,
-                        title = idea.title,
-                        desc = idea.desc,
-                        score = score,
-                        myVote = myVote,
-                        canEditOrDelete = isAdminOrOwner || idea.createdBy.contentEquals(myUserKey),
-                        createdAtLamport = materialization.ideaCreatedAtLamport[ideaIdHex] ?: 0L,
-                    )
-                }
-                .sortedWith(compareByDescending<IdeaSummary> { it.score }.thenByDescending { it.createdAtLamport })
-
-            val selected = _uiState.value.selectedIdeaId
-            val comments = if (selected != null) commentsFor(selected, materialization, isAdminOrOwner) else emptyList()
-
-            val history = gateway.membershipHistory(room)
-            val canCreateEvent = isAdminOrOwner || (myRole == Role.MEMBER && history.membersCanCreateEventsAt(history.current.epoch))
-            val events = materialization.state.events.values
-                .filterNot { it.cancelled }
-                .map { event -> eventSummary(event, materialization.state.rsvps, myKeyHex, isAdminOrOwner) }
-                .sortedBy { it.start }
-
-            _uiState.value = _uiState.value.copy(
-                isLoading = false, ideas = ideas, comments = comments,
-                events = events, canCreateEvent = canCreateEvent,
-            )
-
-            // Best-effort, fetched after the rest of the screen already has what it needs -
-            // a failed/slow limits fetch (relay down, or a self-hosted relay with -limits=none
-            // that still answers `tier: "unlimited"` just fine) must never block ideas/events
-            // from showing. null (loading-forever or failed) just means the badge stays hidden.
-            val tier = gateway.getLimits(room).getOrNull()?.tier
-            _uiState.value = _uiState.value.copy(tier = tier)
+            _uiState.value = _uiState.value.copy(isRefreshing = true)
+            doRefresh()
+            _uiState.value = _uiState.value.copy(isRefreshing = false)
         }
+    }
+
+    private suspend fun doRefresh() {
+        gateway.pull(room)
+        val materialization = gateway.materialize(room)
+        val myRole = gateway.myRole(room)
+        val isAdminOrOwner = myRole == Role.ADMIN || myRole == Role.OWNER
+        val myKeyHex = myUserKey.toKey()
+
+        val ideas = materialization.state.ideas.values
+            .filterNot { it.deleted }
+            .map { idea ->
+                val ideaIdHex = idea.id.toKey()
+                val score = materialization.state.votes
+                    .filterKeys { it.startsWith(ideaIdHex) }
+                    .values.sumOf { it.value }
+                val myVote = materialization.state.votes[ideaIdHex + myKeyHex]?.value ?: 0
+                IdeaSummary(
+                    id = idea.id,
+                    title = idea.title,
+                    desc = idea.desc,
+                    score = score,
+                    myVote = myVote,
+                    canEditOrDelete = isAdminOrOwner || idea.createdBy.contentEquals(myUserKey),
+                    createdAtLamport = materialization.ideaCreatedAtLamport[ideaIdHex] ?: 0L,
+                )
+            }
+            .sortedWith(compareByDescending<IdeaSummary> { it.score }.thenByDescending { it.createdAtLamport })
+
+        val selected = _uiState.value.selectedIdeaId
+        val comments = if (selected != null) commentsFor(selected, materialization, isAdminOrOwner) else emptyList()
+
+        val history = gateway.membershipHistory(room)
+        val canCreateEvent = isAdminOrOwner || (myRole == Role.MEMBER && history.membersCanCreateEventsAt(history.current.epoch))
+        val events = materialization.state.events.values
+            .filterNot { it.cancelled }
+            .map { event -> eventSummary(event, materialization.state.rsvps, myKeyHex, isAdminOrOwner) }
+            .sortedBy { it.start }
+
+        _uiState.value = _uiState.value.copy(
+            isLoading = false, ideas = ideas, comments = comments,
+            events = events, canCreateEvent = canCreateEvent,
+        )
+
+        // Best-effort, fetched after the rest of the screen already has what it needs -
+        // a failed/slow limits fetch (relay down, or a self-hosted relay with -limits=none
+        // that still answers `tier: "unlimited"` just fine) must never block ideas/events
+        // from showing. null (loading-forever or failed) just means the badge stays hidden.
+        val tier = gateway.getLimits(room).getOrNull()?.tier
+        _uiState.value = _uiState.value.copy(tier = tier)
     }
 
     private fun eventSummary(
@@ -187,11 +211,25 @@ public class RoomViewModel(
         refresh()
     }
 
+    /** Optimistic: updates [RoomUiState.ideas] immediately (so a tap feels instant), then rolls
+     * back to the pre-tap snapshot and sets [RoomUiState.actionError] if the push itself fails -
+     * a success still calls [refresh] right after, since the optimistic score/myVote update
+     * doesn't re-sort the list the way a real [doRefresh] does. */
     public fun toggleVote(ideaId: ByteArray, direction: Int) {
-        val current = _uiState.value.ideas.firstOrNull { it.id.contentEquals(ideaId) }?.myVote ?: 0
-        val newValue = if (current == direction) 0 else direction
+        val snapshot = _uiState.value.ideas
+        val idea = snapshot.firstOrNull { it.id.contentEquals(ideaId) } ?: return
+        val newValue = if (idea.myVote == direction) 0 else direction
+        val delta = newValue - idea.myVote
+        val optimistic = snapshot.map {
+            if (it.id.contentEquals(ideaId)) it.copy(score = it.score + delta, myVote = newValue) else it
+        }
+        _uiState.value = _uiState.value.copy(ideas = optimistic, actionError = null)
         viewModelScope.launch {
-            if (gateway.vote(room, ideaId, newValue)) refresh()
+            if (gateway.vote(room, ideaId, newValue)) {
+                refresh()
+            } else {
+                _uiState.value = _uiState.value.copy(ideas = snapshot, actionError = "Couldn't update your vote - please try again.")
+            }
         }
     }
 
@@ -221,11 +259,26 @@ public class RoomViewModel(
         }
     }
 
+    /** Optimistic: appends a temporary [CommentSummary] (random id, `canDelete = false` until
+     * the real materialized one replaces it) immediately, then rolls back to the pre-post
+     * snapshot and sets [RoomUiState.actionError] if the push fails. A success calls [refresh]
+     * to swap the temporary entry for the real one (real id, correct `canDelete`). */
     public fun addComment(ideaId: ByteArray, text: String) {
         if (text.isBlank()) return
+        val snapshot = _uiState.value.comments
+        val optimisticComment = CommentSummary(id = kotlin.random.Random.nextBytes(16), text = text, canDelete = false)
+        _uiState.value = _uiState.value.copy(comments = snapshot + optimisticComment, actionError = null)
         viewModelScope.launch {
-            if (gateway.addComment(room, ideaId, text)) refresh()
+            if (gateway.addComment(room, ideaId, text)) {
+                refresh()
+            } else {
+                _uiState.value = _uiState.value.copy(comments = snapshot, actionError = "Couldn't post your comment - please try again.")
+            }
         }
+    }
+
+    public fun dismissActionError() {
+        _uiState.value = _uiState.value.copy(actionError = null)
     }
 
     public fun deleteComment(commentId: ByteArray) {

@@ -36,6 +36,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.squaddle.app.data.InviteLink
@@ -155,6 +156,7 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
     val context = LocalContext.current
     var joinLink by remember { mutableStateOf<InviteLink?>(null) }
     var showInstallNtfyHint by remember { mutableStateOf(false) }
+    var outboxCount by remember { mutableStateOf(0) }
 
     // Best-effort retry of PUT /users/{user}/devices/{device} on every cold start: idempotent
     // (self-certifying, just overwrites the same stored cert - relay/internal/api/devices.go's
@@ -171,6 +173,18 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
     LaunchedEffect(Unit) {
         PushRegistrar.ensureRegistered(context, gateway)
         showInstallNtfyHint = PushRegistrar.noDistributorInstalled(context)
+    }
+
+    // M4b item 11's offline/outbox banner: a stuck outbox (ops that haven't pushed yet) is
+    // exactly what "you're offline, or sync is failing" looks like from the client's own point
+    // of view, so this skips a separate ConnectivityManager listener entirely. Local-SQLite-only
+    // (no network), same lightweight-polling posture as RealSyncGateway.connectLiveUpdates's own
+    // local change detection.
+    LaunchedEffect(Unit) {
+        while (true) {
+            outboxCount = gateway.outboxCount()
+            kotlinx.coroutines.delay(5000)
+        }
     }
 
     // POST_NOTIFICATIONS is a runtime permission only on API 33+ (below that it doesn't exist
@@ -251,8 +265,14 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
                     modifier = Modifier.Companion.align(Alignment.TopCenter),
                 )
             }
-            if (showInstallNtfyHint) {
-                Text(
+            // Mutually exclusive: a stuck outbox is the more urgent, currently-active problem,
+            // so it wins this one shared banner slot over the (purely advisory) "install ntfy" hint.
+            when {
+                outboxCount > 0 -> Text(
+                    text = stringResource(R.string.outbox_pending_hint, outboxCount),
+                    modifier = Modifier.Companion.align(Alignment.BottomCenter).padding(16.dp).testTag("outboxBanner"),
+                )
+                showInstallNtfyHint -> Text(
                     text = stringResource(R.string.push_install_ntfy_hint),
                     modifier = Modifier.Companion.align(Alignment.BottomCenter).padding(16.dp),
                 )

@@ -176,3 +176,36 @@ Needs a real Play Console listing with a referrer-tagged install link, or
    message) stays in English in both locales - `ViewModel`s have no `Context`/resource access in
    this app's architecture, and relay-authored text is English by protocol design. This is a
    deliberate, documented scope boundary for this item, not a bug.
+
+## Item 11: Behavior polish
+
+1. **Pull-to-refresh**: on the rooms list and both the room screen's Ideas/Events tabs, pull down
+   and confirm Material3's own refresh indicator appears and the list actually re-syncs (new
+   data from a second client via the CLI harness shows up after the pull, not just on next
+   screen entry). Confirm pulling on the Ideas/Events tabs does NOT refresh while idea detail is
+   open (pull-to-refresh is list-only, by design) and that voting/commenting (which also calls
+   `refresh()` internally) never flashes the pull-to-refresh spinner itself - only an actual pull
+   gesture does.
+2. **Optimistic vote/comment**: tap a vote arrow or post a comment with the device offline (or
+   relay unreachable); confirm the UI updates immediately (score/chip state, the new comment
+   appearing) before any network round trip, then rolls back to the exact prior state with an
+   "Action failed" dialog once the push genuinely fails - never a silent no-op, never a stuck
+   optimistic entry.
+3. **Offline/outbox banner**: go offline (airplane mode) and vote on something or post a
+   comment; confirm a bottom banner appears within ~5s reading "N change(s) waiting to sync -
+   check your connection." Reconnect; confirm the banner disappears once the outbox actually
+   drains (next successful `pull()`/`push()`, not immediately on regaining connectivity).
+4. Confirm the offline/outbox banner and the "install ntfy" hint (item 5) never show at the same
+   time - go offline with no UnifiedPush distributor installed; only the outbox banner should
+   appear (it's the more urgent, currently-active problem).
+5. **StrictMode** (debug builds only): run `adb logcat | grep StrictMode` while using the app
+   normally (navigating screens, creating ideas/events, backup/restore); confirm no violations
+   are logged. A violation here means a disk or network call landed on the main thread somewhere
+   in this plan's own new code - fix it, don't just note it, since `penaltyLog` never crashes the
+   app and a missed violation would otherwise ship silently.
+6. **Error states sweep** (review, not new infrastructure - most screens already had adequate
+   states from M4a): confirmed during this pass that Invite/Join/Members/Settings/Voucher all
+   already show a clear error dialog or inline message on failure, and Members/Room screens'
+   loading/content states were already sound. `RoomsListViewModel.refresh()`'s per-room `pull()`
+   failures are deliberately left silent (the list still renders from already-synced local data,
+   never blank) - a reviewed, intentional choice, not a gap.
