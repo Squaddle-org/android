@@ -209,3 +209,33 @@ Needs a real Play Console listing with a referrer-tagged install link, or
    loading/content states were already sound. `RoomsListViewModel.refresh()`'s per-room `pull()`
    failures are deliberately left silent (the list still renders from already-synced local data,
    never blank) - a reviewed, intentional choice, not a gap.
+
+## Item 12: Release build
+
+Build-level verification already done (this environment has no emulator/device, so what
+follows is what's actually been checked vs. what still needs a real device):
+
+- **Checked**: `./gradlew :app:assembleFossRelease` and `:app:assemblePlayRelease` both succeed
+  with `isMinifyEnabled`/`isShrinkResources` now on (previously `false`); both produce a real
+  `-unsigned.apk` and a `mapping.txt`. Inspected `mapping.txt` directly: every
+  `com.ionspin.kotlin.crypto.*` class (the libsodium bindings' JNA interface layer) and every
+  `org.squaddle.**$$serializer` class map to themselves (unobfuscated), while an unrelated
+  third-party `$$serializer` (`io.ktor.util.date.GMTDate$$serializer`) got normally renamed -
+  confirms the proguard-rules.pro keep rules are scoped correctly, not just present.
+  `versionCode`/`versionName` in the built release manifest reflect `git rev-list --count HEAD`/
+  `git describe --tags --always --dirty` correctly (verified: `30` / `d0cd34b-dirty` at the time
+  of that build, matching the repo's actual commit count and HEAD).
+- **Still needs a real device/emulator** (do this before any real release): install the signed
+  (or unsigned, sideloaded) `fossRelease`/`playRelease` APK and walk through the FULL manual test
+  plan above (items 1-11) against it specifically, not just `*Debug` builds. R8 stripping/
+  renaming failures are silent at build time and only surface as a runtime
+  `ClassNotFoundException`/`SerializationException`/reflection failure - a clean build log here
+  is necessary but not sufficient. Pay particular attention to: creating an identity (exercises
+  every libsodium binding function), backup create/restore (the one path using
+  `kotlinx.serialization` directly on `IdentityRecordDto`), and any core `SyncClient` DTO
+  round-trip (limits/entitlements/push registration).
+- To actually produce a signed release build: create `keystore.properties` at the repo root
+  (gitignored, confirmed) with `storeFile`, `storePassword`, `keyAlias`, `keyPassword` pointing
+  at a real upload keystore - its absence is why every build in this session stayed unsigned.
+- A real release tag (`git tag v0.2.0` or similar) makes `versionName` read that tag directly
+  instead of a bare commit hash; no code change needed for that.

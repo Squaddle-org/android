@@ -1,3 +1,6 @@
+import java.io.File
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     // AGP 9's com.android.application has built-in Kotlin support - the separate
@@ -8,19 +11,51 @@ plugins {
     alias(libs.plugins.sqldelight)
 }
 
+/** `null` if `git` isn't on `PATH`, this isn't a git checkout, or there's no tag at all yet -
+ * never fails the build either way (M4b item 12's own fallback requirement). Run once at
+ * configuration time, same as every other `git describe`-derived Android version scheme. */
+fun gitDescribeTagOrNull(): String? = try {
+    val process = ProcessBuilder("git", "describe", "--tags", "--always", "--dirty")
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    if (process.waitFor() == 0 && output.isNotBlank()) output else null
+} catch (e: Exception) {
+    null
+}
+
+/** `versionCode` must be a plain monotonically-increasing int (Play's own requirement) - a
+ * literal parse of `git describe`'s tag string into one would break the moment a tag isn't
+ * strictly numeric semver, so this uses total commit count instead (always increases, and
+ * already reflects every tag's own position in history). `versionName` is the human-readable
+ * `git describe` string (or the hardcoded fallback) - the two are deliberately not required to
+ * "match" each other numerically. */
+fun gitCommitCountOrNull(): Int? = try {
+    val process = ProcessBuilder("git", "rev-list", "--count", "HEAD")
+        .directory(rootDir)
+        .redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    if (process.waitFor() == 0) output.toIntOrNull() else null
+} catch (e: Exception) {
+    null
+}
+
 android {
     namespace = "org.squaddle.app"
     // Several current-stable AndroidX libraries (navigation-compose 2.10.2 among them) require
-    // compiling against API 37+ even though core itself still targets compileSdk 36 - that's
-    // fine, an app's compileSdk only needs to be >= every dependency's own minimum.
+    // compiling against API 37+; core's own compileSdk was bumped to 37 too (M4b item 12 - its
+    // ktor-client-okhttp dependency pulls in an okhttp-android version that required it for this
+    // app's own release build to pass AAR metadata checks at all).
     compileSdk = 37
 
     defaultConfig {
         applicationId = "org.squaddle"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = gitCommitCountOrNull() ?: 1
+        versionName = gitDescribeTagOrNull() ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "DEFAULT_RELAY_HOST", "\"relay.squaddle.org\"")
     }
@@ -38,9 +73,29 @@ android {
         }
     }
 
+    // keystore.properties is gitignored (confirmed in .gitignore) and never committed - the
+    // signing config is simply absent (an unsigned release build) when it's missing, which is
+    // exactly what lets CI and every contributor's own machine still build fossRelease/
+    // playRelease without a real signing key.
+    val keystorePropertiesFile = File(rootDir, "keystore.properties")
+    val releaseSigningConfig = if (keystorePropertiesFile.exists()) {
+        val keystoreProperties = Properties().apply { load(keystorePropertiesFile.inputStream()) }
+        signingConfigs.create("release") {
+            storeFile = File(rootDir, keystoreProperties.getProperty("storeFile"))
+            storePassword = keystoreProperties.getProperty("storePassword")
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+        }
+    } else {
+        null
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (releaseSigningConfig != null) signingConfig = releaseSigningConfig
         }
     }
 
