@@ -6,6 +6,7 @@ private fun ByteArray.toKey(): String = joinToString("") { "%02x".format(it) }
 public class FakeAppLocalStore : AppLocalStore {
     private val rooms = mutableMapOf<String, Known_rooms>()
     private val cursors = mutableMapOf<String, Read_cursors>()
+    private val notifiedCursors = mutableMapOf<String, Notified_cursors>()
 
     override fun insertKnownRoom(roomId: ByteArray, displayName: String, relayHost: String, joinedAt: Long, lastActivityAt: Long) {
         rooms[roomId.toKey()] = Known_rooms(roomId, displayName, relayHost, joinedAt, lastActivityAt)
@@ -28,4 +29,10 @@ public class FakeAppLocalStore : AppLocalStore {
     }
 
     override fun readCursorFor(roomId: ByteArray): Read_cursors? = cursors[roomId.toKey()]
+
+    override fun upsertNotifiedCursor(roomId: ByteArray, lastNotifiedLogIndex: Long, lastNotifiedOpsCursor: Long) {
+        notifiedCursors[roomId.toKey()] = Notified_cursors(roomId, lastNotifiedLogIndex, lastNotifiedOpsCursor)
+    }
+
+    override fun notifiedCursorFor(roomId: ByteArray): Notified_cursors? = notifiedCursors[roomId.toKey()]
 }

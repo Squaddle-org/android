@@ -16,6 +16,8 @@ public interface AppLocalStore {
     public fun deleteKnownRoom(roomId: ByteArray)
     public fun upsertReadCursor(roomId: ByteArray, lastReadLogIndex: Long, lastReadOpsCursor: Long)
     public fun readCursorFor(roomId: ByteArray): Read_cursors?
+    public fun upsertNotifiedCursor(roomId: ByteArray, lastNotifiedLogIndex: Long, lastNotifiedOpsCursor: Long)
+    public fun notifiedCursorFor(roomId: ByteArray): Notified_cursors?
 }
 
 /** Thin wrapper over the generated [AppLocalDb] queries - mirrors core's own `LocalStore`
@@ -46,6 +48,12 @@ public class AndroidAppLocalStore(context: Context) : AppLocalStore {
     }
 
     override fun readCursorFor(roomId: ByteArray): Read_cursors? = q.readCursorFor(roomId).executeAsOneOrNull()
+
+    override fun upsertNotifiedCursor(roomId: ByteArray, lastNotifiedLogIndex: Long, lastNotifiedOpsCursor: Long) {
+        q.upsertNotifiedCursor(roomId, lastNotifiedLogIndex, lastNotifiedOpsCursor)
+    }
+
+    override fun notifiedCursorFor(roomId: ByteArray): Notified_cursors? = q.notifiedCursorFor(roomId).executeAsOneOrNull()
 
     private companion object {
         fun createDriver(context: Context): SqlDriver = AndroidSqliteDriver(AppLocalDb.Schema, context, "squaddle_app_local.db")

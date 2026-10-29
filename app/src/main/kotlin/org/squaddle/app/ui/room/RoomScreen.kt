@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -63,6 +65,13 @@ public fun RoomScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
                 actions = {
+                    IconButton(onClick = viewModel::toggleMute) {
+                        if (state.isMuted) {
+                            Icon(Icons.Filled.NotificationsOff, contentDescription = "Unmute notifications")
+                        } else {
+                            Icon(Icons.Filled.Notifications, contentDescription = "Mute notifications")
+                        }
+                    }
                     IconButton(onClick = onOpenMembers) { Icon(Icons.Filled.People, contentDescription = "Members") }
                     IconButton(onClick = onOpenInvite) { Icon(Icons.Filled.MailOutline, contentDescription = "Invite") }
                 },

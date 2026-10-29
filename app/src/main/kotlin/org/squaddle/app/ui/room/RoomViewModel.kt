@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.push.RoomMuteStore
 import org.squaddle.core.membership.Role
 
 private fun ByteArray.toKey(): String = joinToString("") { "%02x".format(it) }
@@ -34,6 +35,7 @@ public data class RoomUiState(
     public val ideas: List<IdeaSummary> = emptyList(),
     public val selectedIdeaId: ByteArray? = null,
     public val comments: List<CommentSummary> = emptyList(),
+    public val isMuted: Boolean = false,
 )
 
 /**
@@ -48,9 +50,10 @@ public class RoomViewModel(
     private val room: ByteArray,
     private val myUserKey: ByteArray,
     private val gateway: SyncGateway,
+    private val muteStore: RoomMuteStore,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(RoomUiState())
+    private val _uiState = MutableStateFlow(RoomUiState(isMuted = muteStore.isMuted(room)))
     public val uiState: StateFlow<RoomUiState> = _uiState.asStateFlow()
 
     private var liveUpdatesJob: Job? = null
@@ -159,5 +162,14 @@ public class RoomViewModel(
         viewModelScope.launch {
             if (gateway.deleteComment(room, commentId)) refresh()
         }
+    }
+
+    /** Local-only preference (android/CLAUDE.md M4b item 5) - checked by
+     * [org.squaddle.app.push.RoomSyncNotifier] before posting any notification for this room.
+     * No network call, so no [viewModelScope] launch is needed. */
+    public fun toggleMute() {
+        val newValue = !_uiState.value.isMuted
+        muteStore.setMuted(room, newValue)
+        _uiState.value = _uiState.value.copy(isMuted = newValue)
     }
 }

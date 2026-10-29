@@ -10,6 +10,7 @@ import org.junit.After
 import org.junit.Before
 import org.squaddle.app.data.FakeSyncGateway
 import org.squaddle.app.data.RoomMaterialization
+import org.squaddle.app.push.FakeRoomMuteStore
 import org.squaddle.core.membership.Role
 import org.squaddle.core.ops.Comment
 import org.squaddle.core.ops.Idea
@@ -39,6 +40,7 @@ class RoomViewModelTest {
     private val room = ByteArray(32) { 0x01 }
     private val myKey = ByteArray(32) { 0xAA.toByte() }
     private val otherKey = ByteArray(32) { 0xBB.toByte() }
+    private val muteStore = FakeRoomMuteStore()
 
     private fun key(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
 
@@ -69,7 +71,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, lamports)
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
 
         val titles = vm.uiState.value.ideas.map { it.title }
@@ -85,7 +87,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
 
         assertEquals(listOf("Live"), vm.uiState.value.ideas.map { it.title })
@@ -100,7 +102,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
 
         val ideas = vm.uiState.value.ideas.associateBy { it.title }
@@ -116,7 +118,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.ADMIN
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.ideas.single().canEditOrDelete)
@@ -133,7 +135,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
         assertEquals(1, vm.uiState.value.ideas.single().myVote)
 
@@ -160,7 +162,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
 
         vm.selectIdea(targetIdea.id)
@@ -175,7 +177,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
 
         vm.createIdea("New idea", "a description")
@@ -190,12 +192,45 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
         advanceUntilIdle()
 
         vm.createIdea("   ", null)
         advanceUntilIdle()
 
         assertTrue(gateway.createdIdeas.isEmpty())
+    }
+
+    @Test
+    fun toggleMutePersistsToTheStoreAndFlipsUiState() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val localMuteStore = FakeRoomMuteStore()
+        val vm = RoomViewModel(room, myKey, gateway, localMuteStore)
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isMuted)
+
+        vm.toggleMute()
+        assertTrue(vm.uiState.value.isMuted)
+        assertTrue(localMuteStore.isMuted(room))
+
+        vm.toggleMute()
+        assertFalse(vm.uiState.value.isMuted)
+        assertFalse(localMuteStore.isMuted(room))
+    }
+
+    @Test
+    fun startsAlreadyMutedWhenTheStoreSaysSo() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val localMuteStore = FakeRoomMuteStore().apply { setMuted(room, true) }
+        val vm = RoomViewModel(room, myKey, gateway, localMuteStore)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.isMuted)
     }
 }

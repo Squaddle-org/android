@@ -3,6 +3,7 @@ package org.squaddle.app
 import android.app.Application
 import android.content.Context
 import org.squaddle.app.di.AppContainer
+import org.squaddle.app.push.NotificationChannels
 import org.squaddle.core.store.AndroidSqlDriverContext
 
 /**
@@ -18,6 +19,7 @@ public class SquaddleApplication : Application() {
         super.onCreate()
         AndroidSqlDriverContext.applicationContext = this
         container = AppContainer(this)
+        NotificationChannels.createAll(this)
     }
 }
 

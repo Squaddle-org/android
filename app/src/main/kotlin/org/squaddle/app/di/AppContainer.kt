@@ -6,6 +6,8 @@ import org.squaddle.app.crypto.AndroidIdentityVault
 import org.squaddle.app.crypto.IdentityVault
 import org.squaddle.app.data.RealSyncGateway
 import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.push.AndroidRoomMuteStore
+import org.squaddle.app.push.RoomMuteStore
 import org.squaddle.app.settings.AndroidDeveloperSettingsStore
 import org.squaddle.app.settings.DeveloperSettingsStore
 import org.squaddle.app.store.AndroidAppLocalStore
@@ -30,6 +32,7 @@ public class AppContainer(private val context: Context) {
     public val identityVault: IdentityVault = AndroidIdentityVault(context)
     public val appLocalStore: AppLocalStore = AndroidAppLocalStore(context)
     public val developerSettingsStore: DeveloperSettingsStore = AndroidDeveloperSettingsStore(context)
+    public val roomMuteStore: RoomMuteStore = AndroidRoomMuteStore(context)
 
     /** The relay host every client-initiated action (create room, register device, seed-restore
      * room recovery) talks to - a debug-build override if one is set, else the build's own

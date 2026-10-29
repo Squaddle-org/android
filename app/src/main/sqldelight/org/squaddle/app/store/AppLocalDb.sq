@@ -44,3 +44,19 @@ INSERT OR REPLACE INTO read_cursors (room_id, last_read_log_index, last_read_ops
 
 readCursorFor:
 SELECT * FROM read_cursors WHERE room_id = ?;
+
+-- A separate concept from read_cursors above (what the user has *looked at*): this is what
+-- SyncWorker has already *notified* about, so a push/periodic sync that finds new data the user
+-- already has the room open for (read_cursors caught up) still doesn't re-notify for data it
+-- already posted a notification for on a previous run.
+CREATE TABLE notified_cursors (
+  room_id                   BLOB NOT NULL PRIMARY KEY,
+  last_notified_log_index   INTEGER NOT NULL,
+  last_notified_ops_cursor  INTEGER NOT NULL
+);
+
+upsertNotifiedCursor:
+INSERT OR REPLACE INTO notified_cursors (room_id, last_notified_log_index, last_notified_ops_cursor) VALUES (?, ?, ?);
+
+notifiedCursorFor:
+SELECT * FROM notified_cursors WHERE room_id = ?;

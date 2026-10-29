@@ -1,9 +1,15 @@
 package org.squaddle.app
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,8 +34,13 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import org.squaddle.app.data.InviteLink
 import org.squaddle.app.data.RealSyncGateway
+import org.squaddle.app.push.PushRegistrar
 import org.squaddle.app.ui.invite.InviteScreen
 import org.squaddle.app.ui.invite.InviteViewModel
 import org.squaddle.app.ui.join.ClipboardInviteBanner
@@ -126,7 +137,9 @@ private fun SquaddleApp(pendingDeepLink: MutableState<String?>) {
 @Composable
 private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeepLink: MutableState<String?>) {
     val gateway = remember { container.syncGateway() }
+    val context = LocalContext.current
     var joinLink by remember { mutableStateOf<InviteLink?>(null) }
+    var showInstallNtfyHint by remember { mutableStateOf(false) }
 
     // Best-effort retry of PUT /users/{user}/devices/{device} on every cold start: idempotent
     // (self-certifying, just overwrites the same stored cert - relay/internal/api/devices.go's
@@ -135,6 +148,26 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
     // to persist any "still pending" flag.
     LaunchedEffect(Unit) {
         gateway.registerDevice()
+    }
+
+    // Same cold-start retry posture as registerDevice() above - PushRegistrar re-resolves the
+    // distributor and re-registers every launch, which is exactly how a NETWORK/INTERNAL_ERROR
+    // registration failure (SquaddlePushService.onRegistrationFailed) ever gets retried.
+    LaunchedEffect(Unit) {
+        PushRegistrar.ensureRegistered(context, gateway)
+        showInstallNtfyHint = PushRegistrar.noDistributorInstalled(context)
+    }
+
+    // POST_NOTIFICATIONS is a runtime permission only on API 33+ (below that it doesn't exist
+    // and notifications just work); SyncAllRoomsWorker already checks the grant before calling
+    // notify() regardless, so a denial here just means "no notifications shown," never a crash.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     // App Link: consume a pending deep link once, whenever one arrives (first launch, or a
@@ -192,6 +225,12 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
                     modifier = Modifier.Companion.align(Alignment.TopCenter),
                 )
             }
+            if (showInstallNtfyHint) {
+                Text(
+                    text = stringResource(R.string.push_install_ntfy_hint),
+                    modifier = Modifier.Companion.align(Alignment.BottomCenter).padding(16.dp),
+                )
+            }
         }
     }
 }
@@ -241,7 +280,7 @@ private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: or
                 val viewModel: RoomViewModel = viewModel(
                     key = Base32.encode(roomId),
                     factory = viewModelFactory {
-                        initializer { RoomViewModel(roomId, container.session!!.userIdentity.userKey, gateway) }
+                        initializer { RoomViewModel(roomId, container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
                     },
                 )
                 RoomScreen(

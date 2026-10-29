@@ -85,6 +85,14 @@ dependencies {
     implementation(libs.coroutines.core)
     implementation(libs.serialization.json)
     implementation(libs.sqldelight.driver.android)
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.unifiedpush.connector)
+    implementation(libs.biometric)
+
+    // android/CLAUDE.md: play flavor gets Play Billing (M5b, not yet added) - Install Referrer
+    // (item 9, M4b) lands now since it needs no billing setup, just the flavor-specific
+    // dependency; foss stays with zero Google artifacts on its classpath (CI's fossRelease check).
+    "playImplementation"(libs.installreferrer)
 
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
@@ -101,6 +109,7 @@ dependencies {
     testImplementation(libs.androidx.test.runner)
     testImplementation(libs.androidx.test.ext.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.work.testing)
     testImplementation(platform(libs.compose.bom))
     testImplementation("androidx.compose.ui:ui-test-junit4")
 }

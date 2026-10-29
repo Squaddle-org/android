@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- android/CLAUDE.md M4b item 5: UnifiedPush + WorkManager, no FCM. Requested at runtime on
+         API 33+ by SignedInApp (MainActivity.kt); SyncAllRoomsWorker checks the grant before
+         ever calling notify(), so a denial degrades to "no notifications" rather than a crash -
+         the user can still grant it later via system settings. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".SquaddleApplication"
@@ -30,5 +35,15 @@
                 <data android:scheme="https" android:host="squaddle.org" android:pathPrefix="/j/" />
             </intent-filter>
         </activity>
+
+        <!-- UnifiedPush's own callback contract (android-connector) - must not be exported and
+             must declare exactly this action, both per unifiedpush.org's own docs. -->
+        <service
+            android:name=".push.SquaddlePushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

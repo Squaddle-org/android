@@ -128,6 +128,23 @@ public class RealSyncGateway(
         session.syncClientFor(defaultRelayHost).publishDeviceCert()
     }
 
+    override suspend fun registerPushEndpoint(endpoint: String): PushOutcome = catchingPushOutcome {
+        // Same "a relay is needed before any room exists" reasoning as registerDevice above.
+        session.syncClientFor(defaultRelayHost).registerPushEndpoint(endpoint)
+    }
+
+    override suspend fun unregisterPush(): PushOutcome = catchingPushOutcome {
+        session.syncClientFor(defaultRelayHost).unregisterPush()
+    }
+
+    override suspend fun vapidPublicKey(): String? = try {
+        session.syncClientFor(defaultRelayHost).vapidPublicKey()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
     override suspend fun createRoom(roomName: String): Result<ByteArray> = catchingResult {
         val sync = session.syncClientFor(defaultRelayHost)
         val nonce = session.crypto.randomBytes(16)
@@ -226,6 +243,21 @@ public class RealSyncGateway(
             env to body
         }
         return RoomMaterialization(RoomState.fold(ops, history), ideaCreatedAtLamport)
+    }
+
+    /** Same decrypt-only-what-opens-with-a-known-epoch-key tolerance as [materialize]'s own loop
+     * (`?: return@mapNotNull null`) - an op this device can't open yet (future epoch) is simply
+     * not "new" from this device's point of view. Does not call [rehydrateEpochKeys]: every
+     * caller of this method calls [materialize] (which does) for the same room in the same pass
+     * first, so the in-memory epoch key cache is already warm. */
+    override suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<OpBody> {
+        val sync = syncClientForRoom(room)
+        val certOf = certResolverFromLog(room)
+        return session.store.opsAfter(room, sinceOpsCursor).mapNotNull { row ->
+            val env = OpEnvelope.decode(row.envelope_cbor) ?: return@mapNotNull null
+            val key = sync.epochKeyFor(room, env.epoch) ?: return@mapNotNull null
+            (env.open(session.crypto, key, certOf) as? OpOpenResult.Ok)?.body
+        }
     }
 
     override suspend fun membershipHistory(room: ByteArray): MembershipHistory = buildHistory(room)

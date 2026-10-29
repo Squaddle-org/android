@@ -2,6 +2,7 @@ package org.squaddle.app.data
 
 import org.squaddle.core.membership.Role
 import org.squaddle.core.ops.MembershipHistory
+import org.squaddle.core.ops.OpBody
 import org.squaddle.core.ops.RoomState
 import org.squaddle.core.sync.PushOutcome
 import org.squaddle.core.sync.SyncOutcome
@@ -14,6 +15,11 @@ import org.squaddle.core.sync.SyncOutcome
  */
 public class FakeSyncGateway : SyncGateway {
     public var registerDeviceOutcome: PushOutcome = PushOutcome.Ok
+    public var registerPushEndpointOutcome: PushOutcome = PushOutcome.Ok
+    public var unregisterPushOutcome: PushOutcome = PushOutcome.Ok
+    public val registeredPushEndpoints: MutableList<String> = mutableListOf()
+    public var vapidPublicKeyResult: String? = null
+    public var opsSinceResult: List<OpBody> = emptyList()
     public var pullOutcome: SyncOutcome = SyncOutcome.Ok
     public var materialization: RoomMaterialization = RoomMaterialization(RoomState(), emptyMap())
     public var history: MembershipHistory = MembershipHistory.build(emptyList(), org.squaddle.core.membership.MembershipStateImpl.empty(FakeCrypto))
@@ -39,6 +45,15 @@ public class FakeSyncGateway : SyncGateway {
 
     override suspend fun registerDevice(): PushOutcome = registerDeviceOutcome
 
+    override suspend fun registerPushEndpoint(endpoint: String): PushOutcome {
+        registeredPushEndpoints += endpoint
+        return registerPushEndpointOutcome
+    }
+
+    override suspend fun unregisterPush(): PushOutcome = unregisterPushOutcome
+
+    override suspend fun vapidPublicKey(): String? = vapidPublicKeyResult
+
     override suspend fun createRoom(roomName: String): Result<ByteArray> = createRoomResult
 
     override suspend fun restoreKnownRooms(): Result<Int> {
@@ -55,6 +70,8 @@ public class FakeSyncGateway : SyncGateway {
     }
 
     override suspend fun materialize(room: ByteArray): RoomMaterialization = materialization
+
+    override suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<OpBody> = opsSinceResult
 
     override suspend fun membershipHistory(room: ByteArray): MembershipHistory = history
 

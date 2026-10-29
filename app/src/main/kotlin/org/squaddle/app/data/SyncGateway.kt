@@ -2,6 +2,7 @@ package org.squaddle.app.data
 
 import org.squaddle.core.membership.Role
 import org.squaddle.core.ops.MembershipHistory
+import org.squaddle.core.ops.OpBody
 import org.squaddle.core.ops.RoomState
 import org.squaddle.core.sync.PushOutcome
 import org.squaddle.core.sync.SyncOutcome
@@ -23,6 +24,20 @@ public data class RoomMaterialization(
  */
 public interface SyncGateway {
     public suspend fun registerDevice(): PushOutcome
+
+    /** Registers [endpoint] (a UnifiedPush distributor's delivery URL) with the default relay
+     * for the current device - called from [org.squaddle.app.push.MessagingReceiver] whenever
+     * the distributor hands out a new endpoint (first run, or after it rotates one). */
+    public suspend fun registerPushEndpoint(endpoint: String): PushOutcome
+
+    /** Removes this device's push registration - e.g. the user disabling push, or the
+     * distributor reporting it was unregistered. */
+    public suspend fun unregisterPush(): PushOutcome
+
+    /** The default relay's VAPID public key (ADR-0013), or `null` if push isn't configured
+     * there / the relay is unreachable - passed straight into UnifiedPush's own
+     * `register(vapid = ...)` parameter. */
+    public suspend fun vapidPublicKey(): String?
 
     /** Mints a room id+nonce, calls core's `createRoom`, and records it in the local
      * known-rooms registry (room names/registry aren't a protocol concept - see `AppLocalDb.sq`).
@@ -54,6 +69,12 @@ public interface SyncGateway {
      * `core/cli`'s own `materializeRoomState`/`certResolverFromLog` (`cli/src/main/kotlin/org/squaddle/cli/Main.kt:243-275`),
      * a third legitimate call site of core's already-public replay/decrypt/fold functions. */
     public suspend fun materialize(room: ByteArray): RoomMaterialization
+
+    /** Decrypted op bodies stored with a local ops-cursor strictly after [sinceOpsCursor] (core's
+     * own `LocalStore.opsAfter` ordering) - no network, no full-state fold. Lets a caller (the
+     * push/periodic sync worker) see *what* is new since it last acted, which [materialize]'s
+     * full accumulated [RoomState] can't answer on its own. */
+    public suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<OpBody>
 
     public suspend fun membershipHistory(room: ByteArray): MembershipHistory
 
