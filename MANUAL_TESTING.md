@@ -210,6 +210,49 @@ Needs a real Play Console listing with a referrer-tagged install link, or
    failures are deliberately left silent (the list still renders from already-synced local data,
    never blank) - a reviewed, intentional choice, not a gap.
 
+## Back navigation (Navigation Compose rewrite)
+
+`MainActivity.kt` moved off hand-rolled `remember { mutableStateOf(...) }` screen switching onto
+`NavHost`/type-safe `Route`s (`ui/nav/Route.kt`), so system back pops the real back stack instead
+of exiting the app. In-screen interception (idea detail, onboarding steps, discard-changes
+confirmations) uses `BackHandler` and is covered by `BackNavigationTest.kt` under Robolectric -
+see that file's own doc comment for exactly which paths it does and doesn't reach. The
+NavHost-level routing itself (one real screen popping to the one behind it) needs a real
+`FragmentActivity` + the full DI container, so it's verified here instead, on the
+`squaddle_test` AVD (API 34):
+
+- **Members → Room**: open a room, tap the members icon, press back (`adb shell input keyevent
+  KEYCODE_BACK`) - lands back on the room (Ideas tab), not the rooms list. Confirmed.
+- **Room → Rooms list**: from a room, back - lands on the rooms list. Confirmed via three
+  independent input paths, since system back is nav-mode-dependent on a real device even though
+  `KEYCODE_BACK` itself isn't: (1) `input keyevent KEYCODE_BACK`, (2) an edge swipe gesture
+  (`input swipe 5 1200 500 1200 250`) after `cmd overlay enable
+  com.android.internal.systemui.navbar.gestural`, (3) tapping the on-screen ◁ icon after `cmd
+  overlay enable com.android.internal.systemui.navbar.threebutton`. All three land on the rooms
+  list with no crash (`adb logcat -d | grep -c FATAL` stayed `0` throughout).
+- **Invite/Settings/Developer settings → previous screen**: implemented the same way (plain
+  `popBackStack()` in the `NavHost`) as Members above, which IS on-device verified; these three
+  specifically were not separately re-walked on the emulator (same code path, not expected to
+  differ) - worth a quick pass before a release build.
+- **Root (rooms list) back exits the app**: default `NavHost` behavior (nothing left to pop) -
+  not re-verified in this pass since it was already exercised earlier in the session (plain
+  `KEYCODE_BACK` from the empty rooms list backgrounds the app, as it did before this rewrite).
+- **Entered via App Link / invite join**: `navigateToJoin` pushes `Route.Join` on top of the
+  always-present `Route.RoomsList` start destination, so back from the Join screen lands on the
+  rooms list by construction - not yet re-walked with a real App Link intent on this AVD.
+- **Entered via a notification**: unchanged from before this rewrite -
+  `SyncAllRoomsWorker`-posted notifications still just open the app at the rooms list (a
+  pre-existing, documented M4b scope cut, see `Route.kt`'s comment on the `Join` route); this task
+  didn't touch that path.
+- **Predictive back animations**: only the manifest flag
+  (`android:enableOnBackInvokedCallback="true"`) has landed - no custom transition/shared-element
+  animations were added, so screen changes use `NavHost`'s own default animation. Not yet
+  reviewed against Material 3's predictive-back motion guidance.
+- **Not yet done**: a full sweep of dialogs/menus/the keyboard closing first (expected to already
+  work via Compose's own `Dialog`/`Popup` back interception - no bottom sheets exist in this app
+  currently) and "a non-empty search field clears first" (moot - no search field exists anywhere
+  in the app).
+
 ## Item 12: Release build
 
 Build-level verification already done (this environment has no emulator/device, so what
