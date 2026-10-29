@@ -49,13 +49,23 @@ private val EXPIRY_OPTIONS: List<Pair<Int, Int?>> = listOf(
 public fun InviteScreen(viewModel: InviteViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+
+    // "invite options" form asks "discard changes?" - dirty means any option moved off its
+    // default, and only before an invite's actually been created (CreatedInviteContent below is
+    // a result view, not a form - there's nothing left to discard once link != null). Covers
+    // both the TopAppBar's own back icon and system back (requestBack is what both call).
+    val isDirty = state.createdLink == null &&
+        (state.requiresApproval || state.expiresInDays != null || state.maxUses != null)
+    val requestBack = { if (isDirty) showDiscardConfirm = true else onBack() }
+    androidx.activity.compose.BackHandler(enabled = isDirty, onBack = { showDiscardConfirm = true })
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.invite_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = requestBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
             )
         },
@@ -87,6 +97,10 @@ public fun InviteScreen(viewModel: InviteViewModel, onBack: () -> Unit) {
             title = { Text(stringResource(R.string.invite_error_title)) },
             text = { Text(error) },
         )
+    }
+
+    if (showDiscardConfirm) {
+        org.squaddle.app.ui.room.DiscardChangesDialog(onKeepEditing = { showDiscardConfirm = false }, onDiscard = onBack)
     }
 }
 

@@ -14,6 +14,10 @@
     <string name="action_delete">Löschen</string>
     <string name="action_save">Speichern</string>
     <string name="action_done">Fertig</string>
+    <string name="action_discard">Verwerfen</string>
+    <string name="action_keep_editing">Weiter bearbeiten</string>
+    <string name="discard_changes_title">Änderungen verwerfen?</string>
+    <string name="discard_changes_body">Du hast ungespeicherte Änderungen, die verloren gehen.</string>
     <string name="default_room_name">Squaddle-Raum</string>
 
     <!-- PROTOCOL.md §8.1 tier names, shown on the room screen's tier badge and the voucher

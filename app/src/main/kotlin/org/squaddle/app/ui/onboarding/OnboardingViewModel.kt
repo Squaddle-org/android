@@ -88,6 +88,31 @@ public class OnboardingViewModel(
         _uiState.value = OnboardingUiState.ModeSelect
     }
 
+    /** System back's entry point for onboarding's wizard (`OnboardingScreen`'s own
+     * `BackHandler`) - returns `true` if it consumed the back press by moving to a previous
+     * step, `false` if there's nowhere to go back to within onboarding (`ModeSelect`, or a
+     * terminal/in-flight state), in which case the caller lets the press propagate (exits the
+     * app - the only sane behavior this early, before there's even a rooms list to land on). */
+    public fun stepBack(): Boolean {
+        val state = _uiState.value
+        return when (state) {
+            is OnboardingUiState.ShowSeed, is OnboardingUiState.EnterSeed, is OnboardingUiState.Failed -> {
+                backToModeSelect()
+                true
+            }
+            is OnboardingUiState.NameEntry -> {
+                val identity = pendingIdentity
+                _uiState.value = if (state.isRestore) {
+                    OnboardingUiState.EnterSeed(input = identity?.toMnemonic(crypto)?.joinToString(" ").orEmpty(), error = null)
+                } else {
+                    OnboardingUiState.ShowSeed(words = identity?.toMnemonic(crypto).orEmpty(), wroteItDown = true)
+                }
+                true
+            }
+            is OnboardingUiState.ModeSelect, is OnboardingUiState.Saving, is OnboardingUiState.Done -> false
+        }
+    }
+
     public fun updateDisplayName(text: String) {
         val state = _uiState.value as? OnboardingUiState.NameEntry ?: return
         _uiState.value = state.copy(displayName = text)

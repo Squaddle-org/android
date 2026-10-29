@@ -3,6 +3,7 @@
 package org.squaddle.app.ui.room
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,6 +84,13 @@ public fun RoomScreen(
     var showCreateIdeaDialog by remember { mutableStateOf(false) }
     var showCreateEventDialog by remember { mutableStateOf(false) }
     var convertIdeaId by remember { mutableStateOf<ByteArray?>(null) }
+
+    // "idea detail -> room": the detail view is local RoomViewModel state (selectedIdeaId), not
+    // its own nav destination (see Route.kt's own doc comment on why) - this is what makes
+    // system back land back on the idea list instead of falling through to onBack/NavHost.
+    BackHandler(enabled = state.selectedIdeaId != null) {
+        viewModel.selectIdea(null)
+    }
 
     Scaffold(
         topBar = {
@@ -423,8 +431,16 @@ private fun IdeaDetail(
 private fun IdeaEditDialog(title: String, initialTitle: String, initialDesc: String, onDismiss: () -> Unit, onSave: (String, String?) -> Unit) {
     var ideaTitle by remember { mutableStateOf(initialTitle) }
     var ideaDesc by remember { mutableStateOf(initialDesc) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+    // Covers both "new idea" (initial* are blank) and "edit idea" (initial* are the idea's
+    // current values) - either way, `onDismissRequest` fires on a backdrop tap AND on system
+    // back (Compose's Dialog registers its own back handling), so this one check is what makes
+    // both paths ask "discard changes?" instead of silently dropping typed text.
+    val isDirty = ideaTitle != initialTitle || ideaDesc != initialDesc
+    val requestDismiss = { if (isDirty) showDiscardConfirm = true else onDismiss() }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = requestDismiss,
         title = { Text(title) },
         text = {
             Column {
@@ -446,7 +462,28 @@ private fun IdeaEditDialog(title: String, initialTitle: String, initialDesc: Str
             Button(onClick = { onSave(ideaTitle, ideaDesc) }, enabled = ideaTitle.isNotBlank()) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+            TextButton(onClick = requestDismiss, modifier = Modifier.testTag("ideaDialogCancel")) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
+
+    if (showDiscardConfirm) {
+        DiscardChangesDialog(onKeepEditing = { showDiscardConfirm = false }, onDiscard = onDismiss)
+    }
+}
+
+/** Shared by every form this app asks "discard changes?" for (M4b back-navigation fix) - new/
+ * edit idea here, the invite-options form in `InviteScreen.kt`. */
+@Composable
+internal fun DiscardChangesDialog(onKeepEditing: () -> Unit, onDiscard: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onKeepEditing,
+        title = { Text(stringResource(R.string.discard_changes_title)) },
+        text = { Text(stringResource(R.string.discard_changes_body)) },
+        confirmButton = {
+            TextButton(onClick = onDiscard, modifier = Modifier.testTag("discardChangesConfirm")) { Text(stringResource(R.string.action_discard)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onKeepEditing) { Text(stringResource(R.string.action_keep_editing)) }
         },
     )
 }

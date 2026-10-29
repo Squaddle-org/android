@@ -1,5 +1,6 @@
 package org.squaddle.app.ui.onboarding
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,16 @@ public fun OnboardingScreen(viewModel: OnboardingViewModel, onFinished: () -> Un
     if (state is OnboardingUiState.Done) {
         onFinished()
         return
+    }
+    // "onboarding: back steps through onboarding pages" - stepBack() itself decides what counts
+    // as a previous step; when it returns false (ModeSelect, or a terminal/in-flight state) this
+    // handler is disabled for that recomposition, letting the press propagate to the system
+    // default (exits the app - there's nowhere else to land this early, see stepBack's own doc
+    // comment).
+    BackHandler(
+        enabled = state !is OnboardingUiState.ModeSelect && state !is OnboardingUiState.Saving && state !is OnboardingUiState.Done,
+    ) {
+        viewModel.stepBack()
     }
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
