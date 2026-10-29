@@ -85,7 +85,8 @@ class JoinScreenTest {
         composeRule.onNodeWithText("Join").performClick()
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("this room is full").assertIsDisplayed()
+        // M4b item 8: room_full gets friendlier copy than the relay's own raw message.
+        composeRule.onNodeWithText("This room is full. Ask an admin to boost it for more space.").assertIsDisplayed()
         composeRule.onNodeWithText("OK").performClick()
 
         assert(cancelled) { "onCancelled was never called after dismissing the error" }

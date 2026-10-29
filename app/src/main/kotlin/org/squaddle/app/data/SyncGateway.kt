@@ -5,6 +5,7 @@ import org.squaddle.core.ops.MembershipHistory
 import org.squaddle.core.ops.OpBody
 import org.squaddle.core.ops.RoomState
 import org.squaddle.core.sync.PushOutcome
+import org.squaddle.core.sync.RoomLimits
 import org.squaddle.core.sync.SyncOutcome
 
 /** [state] is core's own materialized content-plane view; [ideaCreatedAtLamport] (keyed the same
@@ -121,4 +122,13 @@ public interface SyncGateway {
     /** Current device's role in [room], or `null` if not (yet) a member - convenience the UI
      * needs constantly to decide what actions to show (promote/kick/transfer-owner gating etc.). */
     public suspend fun myRole(room: ByteArray): Role?
+
+    /** `GET /rooms/{room}/limits` (PROTOCOL.md §8.1), wrapped - members only. */
+    public suspend fun getLimits(room: ByteArray): Result<RoomLimits>
+
+    /** Redeems a voucher code for [room] (PROTOCOL.md §8.3) and returns the room's limits
+     * *after* redemption (a fresh [getLimits] call, not just the tier `redeemVoucher` itself
+     * reports) - the voucher screen wants the same full [RoomLimits] shape either way, not a
+     * separate "just the tier" result type. */
+    public suspend fun redeemVoucher(room: ByteArray, code: String): Result<RoomLimits>
 }

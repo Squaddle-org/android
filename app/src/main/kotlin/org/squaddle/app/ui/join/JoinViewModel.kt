@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.squaddle.app.data.InviteLink
 import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.data.friendlyMessage
 import org.squaddle.core.sync.PushOutcome
 
 public sealed interface JoinUiState {
@@ -56,7 +57,7 @@ public class JoinViewModel(private val gateway: SyncGateway) : ViewModel() {
             _uiState.value = if (outcome == PushOutcome.Ok) {
                 JoinUiState.Joined
             } else {
-                JoinUiState.Error((outcome as? PushOutcome.Error)?.message ?: "couldn't join this room")
+                JoinUiState.Error((outcome as? PushOutcome.Error)?.friendlyMessage() ?: "couldn't join this room")
             }
         }
     }

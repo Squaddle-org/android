@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.data.friendlyMessage
 import org.squaddle.core.membership.Role
 import org.squaddle.core.sync.PushOutcome
 
@@ -92,7 +93,7 @@ public class MembersViewModel(
         viewModelScope.launch {
             val outcome = action()
             if (outcome is PushOutcome.Error) {
-                _uiState.value = _uiState.value.copy(actionError = outcome.message)
+                _uiState.value = _uiState.value.copy(actionError = outcome.friendlyMessage())
             } else {
                 refresh()
             }

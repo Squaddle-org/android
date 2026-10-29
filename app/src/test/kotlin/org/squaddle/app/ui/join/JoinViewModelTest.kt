@@ -82,7 +82,8 @@ class JoinViewModelTest {
         advanceUntilIdle()
 
         val error = assertIs<JoinUiState.Error>(vm.uiState.value)
-        kotlin.test.assertEquals("this room is full", error.message)
+        // M4b item 8: room_full gets friendlier copy than the relay's own raw message.
+        kotlin.test.assertEquals("This room is full. Ask an admin to boost it for more space.", error.message)
     }
 
     @Test

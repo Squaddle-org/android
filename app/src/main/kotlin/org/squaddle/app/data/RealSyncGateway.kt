@@ -27,8 +27,11 @@ import org.squaddle.core.ops.OpEnvelope
 import org.squaddle.core.ops.OpOpenResult
 import org.squaddle.core.ops.RoomState
 import org.squaddle.core.store.LocalStore
+import org.squaddle.core.sync.EntitlementOutcome
+import org.squaddle.core.sync.LimitsOutcome
 import org.squaddle.core.sync.ListRoomsOutcome
 import org.squaddle.core.sync.PushOutcome
+import org.squaddle.core.sync.RoomLimits
 import org.squaddle.core.sync.SyncClient
 import org.squaddle.core.sync.SyncOutcome
 import org.squaddle.core.sync.nowUnixSeconds
@@ -264,6 +267,24 @@ public class RealSyncGateway(
 
     override suspend fun myRole(room: ByteArray): Role? = buildHistory(room).current.roleOf(session.userIdentity.userKey)
 
+    override suspend fun getLimits(room: ByteArray): Result<RoomLimits> = catchingResult {
+        val sync = syncClientForRoom(room)
+        when (val outcome = sync.getLimits(room)) {
+            is LimitsOutcome.Ok -> outcome.limits
+            is LimitsOutcome.Error -> throw RelayErrorException(outcome.code, outcome.message)
+        }
+    }
+
+    override suspend fun redeemVoucher(room: ByteArray, code: String): Result<RoomLimits> = catchingResult {
+        val sync = syncClientForRoom(room)
+        val redeemOutcome = sync.redeemVoucher(room, code)
+        if (redeemOutcome is EntitlementOutcome.Error) throw RelayErrorException(redeemOutcome.code, redeemOutcome.message)
+        when (val limitsOutcome = sync.getLimits(room)) {
+            is LimitsOutcome.Ok -> limitsOutcome.limits
+            is LimitsOutcome.Error -> throw RelayErrorException(limitsOutcome.code, limitsOutcome.message)
+        }
+    }
+
     private suspend fun enqueueAndPush(room: ByteArray, body: OpBody): Boolean {
         val sync = syncClientForRoom(room)
         if (!sync.enqueueOp(room, body)) return false
@@ -377,6 +398,7 @@ public class RealSyncGateway(
         val roomName = appLocalStore.knownRoom(room)?.display_name
         val inviteId = session.crypto.randomBytes(16)
         val outcome = sync.createInvite(room, inviteId, requiresApproval, expiresAt, maxUses, roomName)
+        if (outcome is PushOutcome.Error) throw RelayErrorException(outcome.code, outcome.message)
         if (outcome != PushOutcome.Ok) throw IllegalStateException("createInvite failed: $outcome")
         if (requiresApproval) {
             // §3.5: "For approval invites, no envelope exists" - no secret to carry in the link.

@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.squaddle.app.data.InviteLink
+import org.squaddle.app.data.RelayErrorException
 import org.squaddle.app.data.SyncGateway
+import org.squaddle.app.data.friendlyErrorMessage
 import org.squaddle.core.sync.nowUnixSeconds
 
 public data class InviteUiState(
@@ -51,7 +53,10 @@ public class InviteViewModel(
             val result = gateway.createInvite(room, state.requiresApproval, expiresAt, state.maxUses)
             _uiState.value = result.fold(
                 onSuccess = { link -> _uiState.value.copy(isCreating = false, createdLink = link) },
-                onFailure = { e -> _uiState.value.copy(isCreating = false, error = e.message ?: "failed to create invite") },
+                onFailure = { e ->
+                    val message = (e as? RelayErrorException)?.let { friendlyErrorMessage(it.code, it.message ?: "") } ?: e.message
+                    _uiState.value.copy(isCreating = false, error = message ?: "failed to create invite")
+                },
             )
         }
     }
