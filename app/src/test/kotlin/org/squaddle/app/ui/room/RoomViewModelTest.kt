@@ -8,14 +8,19 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
+import org.squaddle.app.data.FakeCrypto
 import org.squaddle.app.data.FakeSyncGateway
 import org.squaddle.app.data.RoomMaterialization
 import org.squaddle.app.push.FakeRoomMuteStore
+import org.squaddle.core.membership.MembershipStateImpl
 import org.squaddle.core.membership.Role
 import org.squaddle.core.ops.Comment
+import org.squaddle.core.ops.Event
 import org.squaddle.core.ops.Idea
 import org.squaddle.core.ops.LwwStamp
+import org.squaddle.core.ops.MembershipHistory
 import org.squaddle.core.ops.RoomState
+import org.squaddle.core.ops.Rsvp
 import org.squaddle.core.ops.Vote
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,6 +55,13 @@ class RoomViewModelTest {
         id = id, createdBy = createdBy, title = title, titleStamp = stamp(1),
         desc = desc, descStamp = stamp(1), tags = emptyList(), tagsStamp = stamp(1),
         status = null, statusStamp = stamp(0), deleted = false, deletedStamp = stamp(0),
+    )
+
+    private fun event(id: ByteArray, createdBy: ByteArray, title: String, start: Long, cancelled: Boolean = false): Event = Event(
+        id = id, createdBy = createdBy, ideaId = null, title = title, titleStamp = stamp(1),
+        start = start, startStamp = stamp(1), end = null, endStamp = stamp(0),
+        tz = "UTC", tzStamp = stamp(1), location = null, locationStamp = stamp(0),
+        allDay = false, allDayStamp = stamp(1), cancelled = cancelled, cancelledStamp = stamp(0),
     )
 
     @Test
@@ -219,6 +231,129 @@ class RoomViewModelTest {
         vm.toggleMute()
         assertFalse(vm.uiState.value.isMuted)
         assertFalse(localMuteStore.isMuted(room))
+    }
+
+    @Test
+    fun eventsSortedByStartWithRsvpCountsAndCancelledOnesExcluded() = runTest(testDispatcher) {
+        val eventA = event(ByteArray(16) { 1 }, myKey, "Later", start = 200L)
+        val eventB = event(ByteArray(16) { 2 }, myKey, "Earlier", start = 100L)
+        val cancelledEvent = event(ByteArray(16) { 3 }, myKey, "Cancelled", start = 50L, cancelled = true)
+        val rsvps = mapOf(
+            key(eventA.id) + key(myKey) to Rsvp("yes", stamp(1)),
+            key(eventA.id) + key(otherKey) to Rsvp("no", stamp(1)),
+            key(eventB.id) + key(otherKey) to Rsvp("maybe", stamp(1)),
+        )
+        val state = RoomState(events = mapOf(key(eventA.id) to eventA, key(eventB.id) to eventB, key(cancelledEvent.id) to cancelledEvent), rsvps = rsvps)
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(state, emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        val events = vm.uiState.value.events
+        assertEquals(listOf("Earlier", "Later"), events.map { it.title }, "sorted by start ascending, cancelled excluded")
+        val later = events.first { it.title == "Later" }
+        assertEquals("yes", later.myRsvp)
+        assertEquals(1, later.yesCount)
+        assertEquals(1, later.noCount)
+        val earlier = events.first { it.title == "Earlier" }
+        assertEquals(1, earlier.maybeCount)
+        assertEquals(null, earlier.myRsvp)
+    }
+
+    @Test
+    fun canCreateEventIsTrueForAdminRegardlessOfRoomSetting() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.ADMIN
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.canCreateEvent)
+    }
+
+    @Test
+    fun canCreateEventDefaultsTrueForMemberWithNoRoomSettingsSnapshotYet() = runTest(testDispatcher) {
+        // membersCanCreateEvents defaults to true with no snapshot at all
+        // (MembershipHistory.membersCanCreateEventsAt's own doc comment) - exercising an actual
+        // "false" needs a real applied ROOM_SETTINGS log entry, which belongs to core's own
+        // MembershipStateImpl/RoomState tests, not this ViewModel (it only reads the result,
+        // never re-implements the authorization rule).
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+            history = MembershipHistory.build(emptyList(), MembershipStateImpl.empty(FakeCrypto))
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.canCreateEvent)
+    }
+
+    @Test
+    fun createEventIgnoresBlankTitle() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        vm.createEvent(ideaId = null, title = "   ", start = 1L, end = null, tz = "UTC", location = null, allDay = false)
+        advanceUntilIdle()
+
+        assertTrue(gateway.createdEvents.isEmpty())
+    }
+
+    @Test
+    fun createEventAndRsvpCallTheGateway() = runTest(testDispatcher) {
+        val eventId = ByteArray(16) { 9 }
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        vm.createEvent(ideaId = null, title = "Camping weekend", start = 1_700_000_000L, end = null, tz = "UTC", location = "Lake", allDay = true)
+        vm.rsvp(eventId, "yes")
+        advanceUntilIdle()
+
+        assertEquals(listOf("Camping weekend"), gateway.createdEvents)
+        assertEquals(listOf(key(eventId) to "yes"), gateway.rsvps)
+    }
+
+    @Test
+    fun cancelEventCallsTheGateway() = runTest(testDispatcher) {
+        val eventId = ByteArray(16) { 7 }
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.OWNER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+
+        vm.cancelEvent(eventId)
+        advanceUntilIdle()
+
+        assertEquals(listOf(key(eventId)), gateway.cancelledEvents)
+    }
+
+    @Test
+    fun selectTabSwitchesTheUiState() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        advanceUntilIdle()
+        assertEquals(RoomTab.IDEAS, vm.uiState.value.selectedTab)
+
+        vm.selectTab(RoomTab.EVENTS)
+
+        assertEquals(RoomTab.EVENTS, vm.uiState.value.selectedTab)
     }
 
     @Test

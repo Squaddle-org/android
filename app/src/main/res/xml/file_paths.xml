@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ui/room/CalendarExport.kt's .ics share - cache-path only, nothing else exposed. -->
+<paths>
+    <cache-path name="ics_exports" path="." />
+</paths>

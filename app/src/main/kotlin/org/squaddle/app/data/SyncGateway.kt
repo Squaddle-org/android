@@ -85,6 +85,18 @@ public interface SyncGateway {
     public suspend fun addComment(room: ByteArray, ideaId: ByteArray, text: String): Boolean
     public suspend fun deleteComment(room: ByteArray, id: ByteArray): Boolean
 
+    /** [ideaId] is `null` for a standalone event, non-null for "convert this idea into an event"
+     * (both are the same op per PROTOCOL.md §4.3 - `ideaId` is just an optional reference field
+     * on `EventCreate`). Authorization (admin/owner, or member iff `membersCanCreateEvents`) is
+     * enforced server-side the same way idea-create authorization is - the UI only decides
+     * whether to *offer* the action via [org.squaddle.app.ui.room.RoomUiState.canCreateEvent]. */
+    public suspend fun createEvent(room: ByteArray, ideaId: ByteArray?, title: String, start: Long, end: Long?, tz: String, location: String?, allDay: Boolean): Boolean
+    public suspend fun cancelEvent(room: ByteArray, id: ByteArray): Boolean
+
+    /** [value] is `"yes"`, `"no"`, or `"maybe"` (PROTOCOL.md §4.3) - always the caller's own RSVP,
+     * same "author's own vote only" shape as [vote]. */
+    public suspend fun rsvp(room: ByteArray, eventId: ByteArray, value: String): Boolean
+
     /** REMOVE + an immediate `autoRotate` right after - not left for a lazy `rotation_required`
      * bounce, mirroring `core`'s own `EndToEndIntegrationTest` kick sequence exactly. */
     public suspend fun kick(room: ByteArray, target: ByteArray): PushOutcome

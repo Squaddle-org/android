@@ -59,6 +59,32 @@ instead.
    (Background Task Inspector supports this) rather than waiting 6h; confirm the notification
    still appears via this path with no push involved at all.
 
+## Item 6: Events + RSVP + calendar export
+
+1. In a room, switch to the "Events" tab (empty state should read "No events yet...").
+2. Open an idea, tap "Make this an event" (only visible if `canCreateEvent` - admin/owner
+   always, member only if the room allows it); fill in date/time/location, Save. Confirm it now
+   appears on the Events tab, sorted correctly against any other events by start time.
+3. From the Events tab's own + FAB, create a second, standalone event (no `ideaId`).
+4. From the CLI harness: `$CLI event rsvp <roomRef> <eventIdHex> yes` as a second user; confirm
+   the phone's RSVP chip counts update after the next pull/refresh.
+5. On the phone, tap Yes/Maybe/No chips on an event; confirm the selected chip highlights and
+   the count moves accordingly, and that re-tapping the same chip is idempotent (no duplicate
+   RSVP row - `rsvp.set` is keyed by (event, author), so this is really a core-side guarantee,
+   just worth eyeballing here).
+6. Tap the calendar icon on an event; confirm the device's calendar app opens pre-filled with
+   title/time/location/all-day correctly, with nothing actually saved until the user confirms
+   there (this app never writes calendar data itself).
+7. Tap the share icon; confirm a real `.ics` file attaches (not a text blob) to whatever app is
+   chosen (email, a calendar app's own "import" intent, etc.) - opening the `.ics` in a desktop
+   calendar app is the strongest check that `DTSTART`/`DTEND`/`UID` are well-formed.
+8. As a non-admin member in a room with "members can create events" disabled (needs a room with
+   that `roomSettings` entry actually applied - not yet exposed in any UI, core-protocol-only for
+   now): confirm the idea detail screen has no "Make this an event" button and the Events tab has
+   no + FAB.
+9. Cancel an event you created (or any event, as admin/owner); confirm it disappears from the
+   list (cancelled events are filtered out, never shown struck-through).
+
 **Regression check:** existing push registration (`POST /v1/push`) must not interfere with
 `registerDevice()`'s own device-cert publish - both run from the same `LaunchedEffect(Unit)`
 cold-start block in `MainActivity.kt`'s `SignedInApp` and must both still succeed independently

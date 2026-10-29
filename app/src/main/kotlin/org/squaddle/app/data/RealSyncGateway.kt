@@ -295,6 +295,16 @@ public class RealSyncGateway(
     override suspend fun deleteComment(room: ByteArray, id: ByteArray): Boolean =
         enqueueAndPush(room, OpBody.CommentDelete(id))
 
+    override suspend fun createEvent(
+        room: ByteArray, ideaId: ByteArray?, title: String, start: Long, end: Long?, tz: String, location: String?, allDay: Boolean,
+    ): Boolean = enqueueAndPush(room, OpBody.EventCreate(session.crypto.randomBytes(16), ideaId, title, start, end, tz, location, allDay))
+
+    override suspend fun cancelEvent(room: ByteArray, id: ByteArray): Boolean =
+        enqueueAndPush(room, OpBody.EventCancel(id))
+
+    override suspend fun rsvp(room: ByteArray, eventId: ByteArray, value: String): Boolean =
+        enqueueAndPush(room, OpBody.RsvpSet(eventId, value))
+
     /** REMOVE + an immediate `autoRotate` right after - mirrors `core`'s own
      * `EndToEndIntegrationTest` kick sequence exactly, rather than waiting for a lazy
      * `rotation_required` bounce on some future content push. */

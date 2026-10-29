@@ -36,6 +36,9 @@ public class FakeSyncGateway : SyncGateway {
     public val createdIdeas: MutableList<Pair<String, String?>> = mutableListOf()
     public val votes: MutableList<Pair<String, Int>> = mutableListOf()
     public val comments: MutableList<Pair<String, String>> = mutableListOf()
+    public val createdEvents: MutableList<String> = mutableListOf()
+    public val cancelledEvents: MutableList<String> = mutableListOf()
+    public val rsvps: MutableList<Pair<String, String>> = mutableListOf()
     public val kicked: MutableList<String> = mutableListOf()
     public val roleChanges: MutableList<Pair<String, String>> = mutableListOf()
     public val transfers: MutableList<String> = mutableListOf()
@@ -97,6 +100,23 @@ public class FakeSyncGateway : SyncGateway {
     }
 
     override suspend fun deleteComment(room: ByteArray, id: ByteArray): Boolean = opOutcome
+
+    override suspend fun createEvent(
+        room: ByteArray, ideaId: ByteArray?, title: String, start: Long, end: Long?, tz: String, location: String?, allDay: Boolean,
+    ): Boolean {
+        createdEvents += title
+        return opOutcome
+    }
+
+    override suspend fun cancelEvent(room: ByteArray, id: ByteArray): Boolean {
+        cancelledEvents += id.joinToString("") { "%02x".format(it) }
+        return opOutcome
+    }
+
+    override suspend fun rsvp(room: ByteArray, eventId: ByteArray, value: String): Boolean {
+        rsvps += eventId.joinToString("") { "%02x".format(it) } to value
+        return opOutcome
+    }
 
     override suspend fun kick(room: ByteArray, target: ByteArray): PushOutcome {
         kicked += target.joinToString("") { "%02x".format(it) }
