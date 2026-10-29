@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -44,7 +45,12 @@ import org.squaddle.app.BuildConfig
 import org.squaddle.core.encoding.Base32
 
 @Composable
-public fun RoomsListScreen(viewModel: RoomsListViewModel, onOpenRoom: (ByteArray) -> Unit, onOpenDeveloperSettings: () -> Unit = {}) {
+public fun RoomsListScreen(
+    viewModel: RoomsListViewModel,
+    onOpenRoom: (ByteArray) -> Unit,
+    onOpenSettings: () -> Unit = {},
+    onOpenDeveloperSettings: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
@@ -53,9 +59,12 @@ public fun RoomsListScreen(viewModel: RoomsListViewModel, onOpenRoom: (ByteArray
             TopAppBar(
                 title = { Text("Rooms") },
                 actions = {
+                    IconButton(onClick = onOpenSettings, modifier = Modifier.testTag("settingsButton")) {
+                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                    }
                     if (BuildConfig.DEBUG) {
                         IconButton(onClick = onOpenDeveloperSettings, modifier = Modifier.testTag("developerSettingsButton")) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Developer settings")
+                            Icon(Icons.Filled.BugReport, contentDescription = "Developer settings")
                         }
                     }
                 },

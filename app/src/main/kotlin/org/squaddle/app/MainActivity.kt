@@ -5,11 +5,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,6 +54,8 @@ import org.squaddle.app.ui.room.RoomScreen
 import org.squaddle.app.ui.room.RoomViewModel
 import org.squaddle.app.settings.DeveloperSettingsScreen
 import org.squaddle.app.settings.DeveloperSettingsViewModel
+import org.squaddle.app.ui.settings.SettingsScreen
+import org.squaddle.app.ui.settings.SettingsViewModel
 import org.squaddle.app.ui.rooms.RoomsListScreen
 import org.squaddle.app.ui.rooms.RoomsListViewModel
 import org.squaddle.app.ui.theme.SquaddleTheme
@@ -65,7 +67,7 @@ import org.squaddle.core.encoding.Base32
  * [pendingDeepLink] is the one piece of state that has to live outside the Compose tree to
  * survive that.
  */
-public class MainActivity : ComponentActivity() {
+public class MainActivity : FragmentActivity() {
     private val pendingDeepLink = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -239,6 +241,7 @@ private fun SignedInApp(container: org.squaddle.app.di.AppContainer, pendingDeep
 private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: org.squaddle.app.data.SyncGateway) {
     var openRoomId by remember { mutableStateOf<ByteArray?>(null) }
     var showDeveloperSettings by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     val roomId = openRoomId
     if (showDeveloperSettings) {
         val viewModel: DeveloperSettingsViewModel = viewModel(
@@ -247,13 +250,34 @@ private fun RoomsOrRoom(container: org.squaddle.app.di.AppContainer, gateway: or
             },
         )
         DeveloperSettingsScreen(viewModel = viewModel, onBack = { showDeveloperSettings = false })
+    } else if (showSettings) {
+        val viewModel: SettingsViewModel = viewModel(
+            factory = viewModelFactory {
+                initializer {
+                    SettingsViewModel(
+                        crypto = container.crypto,
+                        userIdentity = container.session!!.userIdentity,
+                        appLocalStore = container.appLocalStore,
+                        backupManager = container.backupManager,
+                        passphraseVault = container.backupPassphraseVault,
+                        autoBackupSettings = container.autoBackupSettings,
+                    )
+                }
+            },
+        )
+        SettingsScreen(viewModel = viewModel, onBack = { showSettings = false })
     } else if (roomId == null) {
         val viewModel: RoomsListViewModel = viewModel(
             factory = viewModelFactory {
                 initializer { RoomsListViewModel(gateway, container.appLocalStore) }
             },
         )
-        RoomsListScreen(viewModel = viewModel, onOpenRoom = { openRoomId = it }, onOpenDeveloperSettings = { showDeveloperSettings = true })
+        RoomsListScreen(
+            viewModel = viewModel,
+            onOpenRoom = { openRoomId = it },
+            onOpenSettings = { showSettings = true },
+            onOpenDeveloperSettings = { showDeveloperSettings = true },
+        )
     } else {
         var subScreen by remember(roomId) { mutableStateOf<RoomSubScreen>(RoomSubScreen.Ideas) }
         val roomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: "Room"

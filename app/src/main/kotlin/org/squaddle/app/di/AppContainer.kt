@@ -2,6 +2,12 @@ package org.squaddle.app.di
 
 import android.content.Context
 import org.squaddle.app.BuildConfig
+import org.squaddle.app.backup.AndroidAutoBackupSettingsStore
+import org.squaddle.app.backup.AndroidBackupManager
+import org.squaddle.app.backup.AndroidBackupPassphraseVault
+import org.squaddle.app.backup.AutoBackupSettingsStore
+import org.squaddle.app.backup.BackupManager
+import org.squaddle.app.backup.BackupPassphraseVault
 import org.squaddle.app.crypto.AndroidIdentityVault
 import org.squaddle.app.crypto.IdentityVault
 import org.squaddle.app.data.RealSyncGateway
@@ -33,6 +39,9 @@ public class AppContainer(private val context: Context) {
     public val appLocalStore: AppLocalStore = AndroidAppLocalStore(context)
     public val developerSettingsStore: DeveloperSettingsStore = AndroidDeveloperSettingsStore(context)
     public val roomMuteStore: RoomMuteStore = AndroidRoomMuteStore(context)
+    public val backupManager: BackupManager by lazy { AndroidBackupManager(context, crypto) }
+    public val backupPassphraseVault: BackupPassphraseVault = AndroidBackupPassphraseVault(context)
+    public val autoBackupSettings: AutoBackupSettingsStore = AndroidAutoBackupSettingsStore(context)
 
     /** The relay host every client-initiated action (create room, register device, seed-restore
      * room recovery) talks to - a debug-build override if one is set, else the build's own

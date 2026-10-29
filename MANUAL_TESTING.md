@@ -85,6 +85,35 @@ instead.
 9. Cancel an event you created (or any event, as admin/owner); confirm it disappears from the
    list (cancelled events are filtered out, never shown struck-through).
 
+## Item 7: Backup
+
+1. From the rooms list, tap the gear icon (Settings - distinct from the debug-only bug icon).
+2. Tap "Reveal seed"; confirm the device's biometric/PIN/pattern prompt appears and the 24 words
+   only show after a real successful authentication (cancelling the prompt must leave the seed
+   hidden). Tap "Hide" and confirm "Reveal seed" is required again - no "remember" window.
+3. Tap "Create backup"; the system's own "save as" (SAF) picker opens - save to a real location
+   (local storage, or a Drive/Nextcloud "Files" doc provider if signed into one on the device).
+   Enter a passphrase; confirm "Backup saved."
+4. Tap "Restore from backup", pick the file just created, enter the SAME passphrase; confirm
+   "Restored N room(s)." and that every room reappears in the rooms list unchanged (entropy
+   matches the signed-in account, so only `rooms[]` is re-imported - identity/device cert are
+   untouched, by design, see `SettingsViewModel`'s own doc comment).
+5. Repeat step 4 with the WRONG passphrase; confirm a clean "wrong passphrase..." message, no
+   crash, no partial import.
+6. On a second device/fresh install signed in with a DIFFERENT seed, try restoring the same
+   backup file; confirm "This backup belongs to a different account..." and that nothing is
+   imported.
+7. Toggle "Automatic backups" on; the SAF picker opens again (a persisted file, distinct from the
+   manual backup above) - choose a passphrase. Confirm `adb shell dumpsys jobscheduler | grep
+   squaddle` shows the periodic `AutoBackupWorker` job. Change the interval field; confirm the
+   job reschedules with the new interval without being asked for the file/passphrase again.
+8. Force-run the auto-backup job early (Android Studio's Background Task Inspector); confirm the
+   chosen file actually updates (its mtime changes) and restoring from it later works the same
+   as a manual backup.
+9. Toggle "Automatic backups" off; confirm the scheduled job is cancelled
+   (`dumpsys jobscheduler` no longer lists it) and a later app restart does not silently
+   re-enable it.
+
 **Regression check:** existing push registration (`POST /v1/push`) must not interfere with
 `registerDevice()`'s own device-cert publish - both run from the same `LaunchedEffect(Unit)`
 cold-start block in `MainActivity.kt`'s `SignedInApp` and must both still succeed independently
