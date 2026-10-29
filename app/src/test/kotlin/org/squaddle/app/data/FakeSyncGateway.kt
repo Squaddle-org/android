@@ -19,7 +19,8 @@ public class FakeSyncGateway : SyncGateway {
     public var unregisterPushOutcome: PushOutcome = PushOutcome.Ok
     public val registeredPushEndpoints: MutableList<String> = mutableListOf()
     public var vapidPublicKeyResult: String? = null
-    public var opsSinceResult: List<OpBody> = emptyList()
+    public var opsSinceResult: List<AuthoredOp> = emptyList()
+    public var logEntriesSinceResult: List<org.squaddle.core.membership.LogEntry> = emptyList()
     public var getLimitsResult: Result<org.squaddle.core.sync.RoomLimits> =
         Result.success(org.squaddle.core.sync.RoomLimits("free", 20, 20, 90, null, 5, null))
     public var redeemVoucherResult: Result<org.squaddle.core.sync.RoomLimits> = getLimitsResult
@@ -78,7 +79,9 @@ public class FakeSyncGateway : SyncGateway {
 
     override suspend fun materialize(room: ByteArray): RoomMaterialization = materialization
 
-    override suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<OpBody> = opsSinceResult
+    override suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<AuthoredOp> = opsSinceResult
+
+    override suspend fun logEntriesSince(room: ByteArray, sinceLogIndex: Long): List<org.squaddle.core.membership.LogEntry> = logEntriesSinceResult
 
     override suspend fun getLimits(room: ByteArray): Result<org.squaddle.core.sync.RoomLimits> = getLimitsResult
 

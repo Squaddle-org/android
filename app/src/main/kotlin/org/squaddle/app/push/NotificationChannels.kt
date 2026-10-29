@@ -15,6 +15,17 @@ public object NotificationChannels {
     public const val EVENT: String = "event"
     public const val RSVP: String = "rsvp"
 
+    /** Being promoted/demoted, having ownership transferred to you, or getting kicked - all
+     * surprising-enough-to-matter membership changes, one channel (the request's own single
+     * bullet "role changes/kick affecting me", not two separate asks). Importance HIGH - unlike
+     * the content channels above, a user should actually notice this promptly. */
+    public const val MEMBERSHIP: String = "membership"
+
+    /** A join request on a room I admin/own needs *my* action - separate from [MEMBERSHIP] since
+     * it's a different audience (admins/owners only, never a plain member) and a different kind
+     * of urgency (nothing broke, something is just waiting on me). */
+    public const val PENDING_APPROVAL: String = "pending_approval"
+
     /** Call once at app startup (idempotent - recreating an existing channel with the same id
      * is a no-op per [NotificationManager.createNotificationChannel]'s own contract, and never
      * resets a user's own per-channel settings). */
@@ -25,6 +36,8 @@ public object NotificationChannels {
             NotificationChannel(COMMENT, context.getString(R.string.notification_channel_comment), NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(EVENT, context.getString(R.string.notification_channel_event), NotificationManager.IMPORTANCE_DEFAULT),
             NotificationChannel(RSVP, context.getString(R.string.notification_channel_rsvp), NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(MEMBERSHIP, context.getString(R.string.notification_channel_membership), NotificationManager.IMPORTANCE_HIGH),
+            NotificationChannel(PENDING_APPROVAL, context.getString(R.string.notification_channel_pending_approval), NotificationManager.IMPORTANCE_DEFAULT),
         )
         manager.createNotificationChannels(channels)
     }

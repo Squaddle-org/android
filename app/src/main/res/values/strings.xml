@@ -31,6 +31,8 @@
     <string name="notification_channel_comment">New comments</string>
     <string name="notification_channel_event">New events</string>
     <string name="notification_channel_rsvp">RSVP updates</string>
+    <string name="notification_channel_membership">Role changes</string>
+    <string name="notification_channel_pending_approval">Pending approvals</string>
 
     <!-- push/SyncAllRoomsWorker.kt - never built from the push payload itself (it's content-free,
          ADR-0013/PROTOCOL.md §6), always from what was just decrypted locally. -->
@@ -38,6 +40,10 @@
     <string name="notification_new_comment">New comment in %1$s</string>
     <string name="notification_new_event">New event in %1$s</string>
     <string name="notification_new_rsvp">New RSVP in %1$s</string>
+    <string name="notification_role_changed">Your role changed in %1$s</string>
+    <string name="notification_kicked">You were removed from %1$s</string>
+    <string name="notification_pending_approval">Someone wants to join %1$s</string>
+    <string name="notification_group_summary">%1$d new update(s) in %2$s</string>
 
     <!-- MainActivity.kt's SignedInApp - shown only when PushRegistrar.noDistributorInstalled(). -->
     <string name="push_install_ntfy_hint">Install ntfy for instant updates - without it, Squaddle checks for new activity every few hours.</string>

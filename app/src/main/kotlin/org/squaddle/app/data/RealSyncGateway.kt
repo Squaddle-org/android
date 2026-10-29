@@ -253,15 +253,19 @@ public class RealSyncGateway(
      * not "new" from this device's point of view. Does not call [rehydrateEpochKeys]: every
      * caller of this method calls [materialize] (which does) for the same room in the same pass
      * first, so the in-memory epoch key cache is already warm. */
-    override suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<OpBody> {
+    override suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<AuthoredOp> {
         val sync = syncClientForRoom(room)
         val certOf = certResolverFromLog(room)
         return session.store.opsAfter(room, sinceOpsCursor).mapNotNull { row ->
             val env = OpEnvelope.decode(row.envelope_cbor) ?: return@mapNotNull null
             val key = sync.epochKeyFor(room, env.epoch) ?: return@mapNotNull null
-            (env.open(session.crypto, key, certOf) as? OpOpenResult.Ok)?.body
+            val body = (env.open(session.crypto, key, certOf) as? OpOpenResult.Ok)?.body ?: return@mapNotNull null
+            AuthoredOp(env.author, body)
         }
     }
+
+    override suspend fun logEntriesSince(room: ByteArray, sinceLogIndex: Long): List<LogEntry> =
+        session.store.logEntriesFrom(room, sinceLogIndex + 1).mapNotNull { row -> LogEntry.decode(row.entry_cbor) }
 
     override suspend fun membershipHistory(room: ByteArray): MembershipHistory = buildHistory(room)
 

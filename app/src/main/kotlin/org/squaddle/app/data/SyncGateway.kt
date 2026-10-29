@@ -1,5 +1,6 @@
 package org.squaddle.app.data
 
+import org.squaddle.core.membership.LogEntry
 import org.squaddle.core.membership.Role
 import org.squaddle.core.ops.MembershipHistory
 import org.squaddle.core.ops.OpBody
@@ -16,6 +17,11 @@ public data class RoomMaterialization(
     public val state: RoomState,
     public val ideaCreatedAtLamport: Map<String, Long>,
 )
+
+/** [author] is the op's own user key ([org.squaddle.core.ops.OpEnvelope.author], not `device`) -
+ * [RoomSyncNotifier][org.squaddle.app.push.RoomSyncNotifier] needs it to tell "someone else did
+ * this" from "I did this, maybe from one of my other devices" (same user key either way). */
+public data class AuthoredOp(public val author: ByteArray, public val body: OpBody)
 
 /**
  * The single app<->core integration seam - every ViewModel in this app depends on this interface,
@@ -71,11 +77,20 @@ public interface SyncGateway {
      * a third legitimate call site of core's already-public replay/decrypt/fold functions. */
     public suspend fun materialize(room: ByteArray): RoomMaterialization
 
-    /** Decrypted op bodies stored with a local ops-cursor strictly after [sinceOpsCursor] (core's
-     * own `LocalStore.opsAfter` ordering) - no network, no full-state fold. Lets a caller (the
-     * push/periodic sync worker) see *what* is new since it last acted, which [materialize]'s
-     * full accumulated [RoomState] can't answer on its own. */
-    public suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<OpBody>
+    /** Decrypted op bodies (+ each one's author) stored with a local ops-cursor strictly after
+     * [sinceOpsCursor] (core's own `LocalStore.opsAfter` ordering) - no network, no full-state
+     * fold. Lets a caller (the push/periodic sync worker) see *what* is new since it last acted,
+     * which [materialize]'s full accumulated [RoomState] can't answer on its own. */
+    public suspend fun opsSince(room: ByteArray, sinceOpsCursor: Long): List<AuthoredOp>
+
+    /** Decoded membership-log entries with a log index strictly after [sinceLogIndex] - same
+     * exclusive-cursor convention as [opsSince] (`cursors.last_log_index`/
+     * `notified_cursors.last_notified_log_index` both store "the index of the last entry already
+     * seen," core's own `SyncClient.pull`'s `fromIndex = last_log_index + 1` convention -
+     * `AppLocalDb.sq`'s `notified_cursors` table). No network, no full-state fold. Lets
+     * [org.squaddle.app.push.RoomSyncNotifier] see which *specific* membership changes are new (a
+     * kick/role-change/pending-join) without re-deriving the whole fold itself. */
+    public suspend fun logEntriesSince(room: ByteArray, sinceLogIndex: Long): List<LogEntry>
 
     public suspend fun membershipHistory(room: ByteArray): MembershipHistory
 

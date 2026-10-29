@@ -165,21 +165,24 @@ private fun NavController.navigateToJoin(link: InviteLink) {
     navigate(Route.Join(link.toUriString()))
 }
 
-/** Builds the proper synthetic back stack for a `squaddle://room/.../idea|event/...` deep link
- * (`Route.kt`'s own doc comment on why this URI scheme exists) - always pushes [Route.Room]
- * directly beneath [route], explicitly, rather than relying on [route]'s own `navigate()` call to
- * construct it: this is what makes `composable<Route.Idea>`/`composable<Route.Event>`'s
- * `getBackStackEntry(Route.Room(...))` lookup always succeed, and what makes back from the idea/
- * event land on the room (its real "parent") instead of skipping past it, the same deliberate
- * stack-building [navigateToJoin] above already relies on for [Route.RoomsList]. */
-private fun NavController.navigateToIdeaOrEvent(route: Route) {
+/** Builds the proper synthetic back stack for a `squaddle://room/...` deep link (`Route.kt`'s own
+ * doc comment on why this URI scheme exists) - always pushes [Route.Room] directly beneath
+ * [route] (unless [route] already IS the room - then there's nothing more to push), explicitly,
+ * rather than relying on [route]'s own `navigate()` call to construct it: this is what makes
+ * `composable<Route.Idea>`/`composable<Route.Event>`'s `getBackStackEntry(Route.Room(...))`
+ * lookup always succeed, and what makes back from the idea/event/members screen land on the room
+ * (its real "parent") instead of skipping past it, the same deliberate stack-building
+ * [navigateToJoin] above already relies on for [Route.RoomsList]. */
+private fun NavController.navigateToRoomDeepLink(route: Route) {
     val roomIdB32 = when (route) {
+        is Route.Room -> route.roomIdB32
         is Route.Idea -> route.roomIdB32
         is Route.Event -> route.roomIdB32
+        is Route.Members -> route.roomIdB32
         else -> return
     }
     navigate(Route.Room(roomIdB32))
-    navigate(route)
+    if (route !is Route.Room) navigate(route)
 }
 
 @Composable
@@ -276,16 +279,16 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
     // the graph's start destination underneath everything, so back from here always lands on it
     // ("entered via App Link: back goes to the room's parent" - RoomsList is that parent, with no
     // synthetic stack-building needed since it was never popped off in the first place). A
-    // squaddle://room/... link (Route.kt's own doc comment - today only ever constructed inside
-    // this app, not yet fed by a real notification tap) DOES need an explicit synthetic stack
-    // (navigateToIdeaOrEvent), since its own "parent" (Route.Room) isn't already sitting there
-    // the way RoomsList is for Join.
+    // squaddle://room/... link (Route.kt's own doc comment - built by RoomSyncNotifier for a
+    // notification tap, or constructed directly for testing) DOES need an explicit synthetic
+    // stack (navigateToRoomDeepLink), since its own "parent" (Route.Room) isn't already sitting
+    // there the way RoomsList is for Join.
     LaunchedEffect(pendingDeepLink.value) {
         val text = pendingDeepLink.value
         if (text != null) {
             val internalRoute = parseInternalDeepLink(text)
             if (internalRoute != null) {
-                navController.navigateToIdeaOrEvent(internalRoute)
+                navController.navigateToRoomDeepLink(internalRoute)
             } else {
                 gateway.parseInviteLink(text)?.let { navController.navigateToJoin(it) }
             }
@@ -387,7 +390,7 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                 // Shares Route.Room's own RoomViewModel instance (scoped to that entry, which is
                 // guaranteed to be on the back stack directly beneath this one - see this
                 // composable()'s only two entry points below: the in-app tap in RoomScreen always
-                // starts from an already-open Route.Room, and navigateToIdeaOrEvent explicitly
+                // starts from an already-open Route.Room, and navigateToRoomDeepLink explicitly
                 // pushes Route.Room first for a deep link) rather than a fresh one, so a vote/
                 // comment made here is visible immediately on the ideas list behind it.
                 val roomEntry = remember(backStackEntry) { navController.getBackStackEntry(Route.Room(route.roomIdB32)) }
