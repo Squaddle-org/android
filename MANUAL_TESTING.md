@@ -254,10 +254,13 @@ NavHost-level routing itself (one real screen popping to the one behind it) need
   (`android:enableOnBackInvokedCallback="true"`) has landed - no custom transition/shared-element
   animations were added, so screen changes use `NavHost`'s own default animation. Not yet
   reviewed against Material 3's predictive-back motion guidance.
-- **Not yet done**: a full sweep of dialogs/menus/the keyboard closing first (expected to already
-  work via Compose's own `Dialog`/`Popup` back interception - no bottom sheets exist in this app
-  currently) and "a non-empty search field clears first" (moot - no search field exists anywhere
-  in the app).
+- **Dialogs + keyboard close first**: confirmed with the "Create a room" dialog (has a focused,
+  IME-visible text field): first back closes only the keyboard, dialog stays open with the field
+  still empty/focused; second back closes the dialog, landing cleanly on the rooms list - all via
+  Compose's own `Dialog`/IME back-dispatch chain, no custom code needed. Not separately re-walked
+  for every other dialog in the app (same underlying mechanism); no bottom sheets exist in this
+  app currently, so that part of the requirement is moot. "A non-empty search field clears
+  first" is also moot - no search field exists anywhere in the app.
 
 ## Item 12: Release build
 
