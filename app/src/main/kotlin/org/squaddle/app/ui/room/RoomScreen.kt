@@ -3,16 +3,26 @@
 package org.squaddle.app.ui.room
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -59,9 +69,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.squaddle.app.R
 import java.time.Instant
@@ -353,30 +368,77 @@ private fun IdeasList(
 private fun IdeaRow(idea: IdeaSummary, onClick: () -> Unit, onVote: (Int) -> Unit) {
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("idea_${Base32.encode(idea.id)}"),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).testTag("idea_${Base32.encode(idea.id)}"),
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            VoteControl(score = idea.score, myVote = idea.myVote, onVote = onVote)
-            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(idea.title, style = MaterialTheme.typography.titleMedium)
-                idea.desc?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                idea.desc?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp)) }
             }
+            VoteControl(score = idea.score, myVote = idea.myVote, onVote = onVote, modifier = Modifier.padding(start = 8.dp))
         }
     }
 }
 
+/**
+ * A single pill (not stacked arrows) - the up/down affordance reads as one control at a glance
+ * instead of three separate rows (the old Column layout - up arrow, bare number, down arrow -
+ * was most of an idea card's height on its own). Background tints to the primary/error container
+ * the moment this device's own vote is up/down, so "did I already vote on this" is answerable
+ * without reading the arrow tint. The score itself animates a vertical slide+fade keyed to
+ * direction (up vote slides the new number in from below, down vote from above) rather than
+ * snapping, and both buttons fire a light haptic tick on tap - the two concrete, spec-named
+ * "vote feel" requirements. IconButtons keep M3's default 48dp min touch target (a tighter custom
+ * size would undercut the accessibility pass's own ≥48dp requirement).
+ */
 @Composable
-private fun VoteControl(score: Int, myVote: Int, onVote: (Int) -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        IconButton(onClick = { onVote(1) }, modifier = Modifier.testTag("voteUp")) {
+private fun VoteControl(score: Int, myVote: Int, onVote: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
+    val containerColor = when (myVote) {
+        1 -> MaterialTheme.colorScheme.primaryContainer
+        -1 -> MaterialTheme.colorScheme.errorContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    Row(
+        modifier = modifier.clip(CircleShape).background(containerColor),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        IconButton(
+            onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onVote(1) },
+            modifier = Modifier.testTag("voteUp"),
+        ) {
             Icon(
                 Icons.Filled.KeyboardArrowUp,
                 contentDescription = stringResource(R.string.room_upvote),
                 tint = if (myVote == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text("$score", style = MaterialTheme.typography.labelLarge)
-        IconButton(onClick = { onVote(-1) }, modifier = Modifier.testTag("voteDown")) {
+        AnimatedContent(
+            targetState = score,
+            transitionSpec = {
+                val distance = 16
+                if (targetState > initialState) {
+                    (slideInVertically(tween(180)) { distance } + fadeIn(tween(180))) togetherWith
+                        (slideOutVertically(tween(180)) { -distance } + fadeOut(tween(180)))
+                } else {
+                    (slideInVertically(tween(180)) { -distance } + fadeIn(tween(180))) togetherWith
+                        (slideOutVertically(tween(180)) { distance } + fadeOut(tween(180)))
+                }
+            },
+            label = "voteScore",
+        ) { animatedScore ->
+            Text(
+                "$animatedScore",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.widthIn(min = 20.dp),
+            )
+        }
+        IconButton(
+            onClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onVote(-1) },
+            modifier = Modifier.testTag("voteDown"),
+        ) {
             Icon(
                 Icons.Filled.KeyboardArrowDown,
                 contentDescription = stringResource(R.string.room_downvote),
