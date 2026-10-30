@@ -57,6 +57,9 @@
     <string name="onboarding_tagline">Keine Konten, keine Passwörter. Deine Identität ist nur eine Seed-Phrase, die nur du besitzt.</string>
     <string name="onboarding_create_identity">Neue Identität erstellen</string>
     <string name="onboarding_have_seed">Ich habe bereits eine Seed-Phrase</string>
+    <string name="onboarding_have_backup_file">Aus einer Sicherungsdatei wiederherstellen</string>
+    <string name="onboarding_backup_passphrase_title">Passphrase der Sicherung eingeben</string>
+    <string name="onboarding_backup_passphrase_explainer">Dies stellt deine Identität wieder her und importiert die in der Sicherung gespeicherte Raumliste - auch Räume auf einem anderen Relay, was mit einer reinen Seed-Phrase nicht möglich ist.</string>
     <string name="onboarding_seed_title">Deine Wiederherstellungsphrase</string>
     <string name="onboarding_seed_warning">Schreibe diese 24 Wörter an einem sicheren Ort auf. Jeder mit dieser Phrase kann auf alle deine Räume zugreifen.</string>
     <string name="onboarding_wrote_it_down">Ich habe sie aufgeschrieben</string>

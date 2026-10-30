@@ -57,6 +57,9 @@
     <string name="onboarding_tagline">No accounts, no passwords. Your identity is a seed phrase only you hold.</string>
     <string name="onboarding_create_identity">Create a new identity</string>
     <string name="onboarding_have_seed">I already have a seed phrase</string>
+    <string name="onboarding_have_backup_file">Restore from a backup file</string>
+    <string name="onboarding_backup_passphrase_title">Enter the backup\'s passphrase</string>
+    <string name="onboarding_backup_passphrase_explainer">This recovers your identity and imports the room list stored in the backup - including rooms on a different relay, which a seed phrase alone can\'t do.</string>
     <string name="onboarding_seed_title">Your recovery phrase</string>
     <string name="onboarding_seed_warning">Write these 24 words down somewhere safe. Anyone with this phrase can access every room you\'re in.</string>
     <string name="onboarding_wrote_it_down">I wrote it down</string>

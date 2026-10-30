@@ -11,10 +11,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.squaddle.app.backup.FakeBackupManager
 import org.squaddle.app.crypto.FakeIdentityVault
 import org.squaddle.app.data.FakeCrypto
 import org.squaddle.app.data.FakeSyncGateway
 import org.squaddle.app.settings.FakeDisplayNameStore
+import org.squaddle.app.store.FakeAppLocalStore
 
 /** Real Compose semantics on the JVM via Robolectric - no emulator/device needed (see the plan's
  * own justification). Drives the create-identity path end to end through the actual Composables,
@@ -39,6 +41,8 @@ class OnboardingScreenTest {
             crypto = FakeCrypto,
             identityVault = vault,
             displayNameStore = FakeDisplayNameStore(),
+            backupManager = FakeBackupManager(),
+            appLocalStore = FakeAppLocalStore(),
             openSession = { _, _, _ -> gateway },
         )
 

@@ -8,10 +8,15 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
+import org.squaddle.app.backup.BackupReadOutcome
+import org.squaddle.app.backup.FakeBackupManager
 import org.squaddle.app.crypto.FakeIdentityVault
 import org.squaddle.app.data.FakeCrypto
 import org.squaddle.app.data.FakeSyncGateway
 import org.squaddle.app.settings.FakeDisplayNameStore
+import org.squaddle.app.store.FakeAppLocalStore
+import org.squaddle.core.backup.BackupContent
+import org.squaddle.core.backup.BackupRoomRef
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -37,11 +42,15 @@ class OnboardingViewModelTest {
         vault: FakeIdentityVault = FakeIdentityVault(),
         gateway: FakeSyncGateway = FakeSyncGateway(),
         displayNameStore: FakeDisplayNameStore = FakeDisplayNameStore(),
+        backupManager: FakeBackupManager = FakeBackupManager(),
+        appLocalStore: FakeAppLocalStore = FakeAppLocalStore(),
     ): OnboardingViewModel =
         OnboardingViewModel(
             crypto = FakeCrypto,
             identityVault = vault,
             displayNameStore = displayNameStore,
+            backupManager = backupManager,
+            appLocalStore = appLocalStore,
             openSession = { _, _, _ -> gateway },
         )
 
@@ -98,6 +107,50 @@ class OnboardingViewModelTest {
         // (DisplayNameStore's own doc comment) - persisting it here is what makes MembersScreen
         // ever show a real name instead of falling back to a member's raw key.
         assertEquals("Alex", displayNameStore.displayName())
+    }
+
+    @Test
+    fun restoringFromABackupFileImportsItsOwnRoomsListInsteadOfCallingRestoreKnownRooms() = runTest(testDispatcher) {
+        val backupManager = FakeBackupManager()
+        val appLocalStore = FakeAppLocalStore()
+        val gateway = FakeSyncGateway()
+        val roomId = ByteArray(32) { 7 }
+        val roomRef = BackupRoomRef(org.squaddle.core.encoding.Base32.encode(roomId) + "@relay.example.org", "Camping Trip")
+        backupManager.readOutcome = BackupReadOutcome.Ok(BackupContent(entropy = ByteArray(32), rooms = listOf(roomRef), createdAt = 1L))
+        val vm = viewModel(gateway = gateway, backupManager = backupManager, appLocalStore = appLocalStore)
+
+        vm.backupFilePicked("content://backup-file")
+        vm.submitBackupPassphrase("correct horse battery staple")
+        advanceUntilIdle()
+        val nameEntry = assertIs<OnboardingUiState.NameEntry>(vm.uiState.value)
+        assertTrue(nameEntry.isRestore)
+        vm.updateDisplayName("Alex")
+        vm.finish()
+        advanceUntilIdle()
+
+        assertEquals(OnboardingUiState.Done, vm.uiState.value)
+        assertEquals(1, appLocalStore.allKnownRooms().size)
+        assertTrue(appLocalStore.allKnownRooms().single().room_id.contentEquals(roomId))
+        // The room came from the backup's own rooms[] (with its own relay host), not a
+        // relay-query - restoreKnownRooms() would never produce a room on an unknown relay like
+        // this one, which this test's backup file deliberately names.
+        assertEquals("relay.example.org", appLocalStore.allKnownRooms().single().relay_host)
+        assertEquals(listOf<Pair<String, String?>>("Alex" to null), gateway.profileSets)
+    }
+
+    @Test
+    fun wrongBackupPassphraseStaysOnTheSameStepWithAnInlineError() = runTest(testDispatcher) {
+        val backupManager = FakeBackupManager()
+        backupManager.readOutcome = BackupReadOutcome.Error("wrong passphrase, or not a Squaddle backup file")
+        val vm = viewModel(backupManager = backupManager)
+
+        vm.backupFilePicked("content://backup-file")
+        vm.submitBackupPassphrase("wrong guess")
+        advanceUntilIdle()
+
+        val state = assertIs<OnboardingUiState.EnterBackupPassphrase>(vm.uiState.value)
+        assertEquals("content://backup-file", state.uriString)
+        assertEquals("wrong passphrase, or not a Squaddle backup file", state.error)
     }
 
     @Test

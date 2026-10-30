@@ -147,6 +147,8 @@ class BackNavigationTest {
             crypto = org.squaddle.app.data.FakeCrypto,
             identityVault = org.squaddle.app.crypto.FakeIdentityVault(),
             displayNameStore = org.squaddle.app.settings.FakeDisplayNameStore(),
+            backupManager = org.squaddle.app.backup.FakeBackupManager(),
+            appLocalStore = org.squaddle.app.store.FakeAppLocalStore(),
             openSession = { _, _, _ -> FakeSyncGateway() },
         )
 

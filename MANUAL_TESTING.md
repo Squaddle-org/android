@@ -305,6 +305,67 @@ the `ViewModelStoreOwner`), confirmed on the `squaddle_test` AVD:
   back to room) also wasn't separately re-done - same `RoomViewModel`-sharing and
   `LaunchedEffect`-driven pop mechanics as idea detail, same code path, not expected to differ.
 
+## Live bug fixes (password masking, seed-reveal crash, member display names, backup-restore onboarding)
+
+Four bugs reported from actually using the app, fixed and verified on the `squaddle_test` AVD:
+
+- **Backup/restore passphrase shown in plaintext**: `SettingsScreen.kt`'s `PassphraseDialog` had no
+  `PasswordVisualTransformation` at all. Fixed (masked by default, show/hide toggle) - confirmed
+  on-device on both the "Protect this backup" and restore-passphrase dialogs.
+- **"Reveal seed" crashed the app, every time**: root cause had nothing to do with biometrics -
+  `SeedSection` rendered the 24 words in a `LazyVerticalGrid` placed directly inside
+  `SettingsScreen`'s own outer `LazyColumn` `item{}` block with no bounded height, which Compose
+  crashes on the instant it measures. Fixed by replacing it with a plain chunked `Column`/`Row` (no
+  reason for 24 fixed words to be a lazy/virtualized list at all). Confirmed on-device: set a
+  device PIN (`adb shell locksettings set-pin`) so `BiometricPrompt`'s `DEVICE_CREDENTIAL` fallback
+  actually triggers, reproduced the crash pre-fix, confirmed it's gone post-fix (all 24 words
+  render, no crash).
+- **Members list showed a random-looking Base32 key instead of the name that was set**: the
+  onboarding "What should we call you?" step collected a display name but never did anything with
+  it - `SyncGateway` had no `setProfile` method at all, even though core's `OpBody.ProfileSet` and
+  `RoomState.profiles` were already fully implemented. Fixed: new `SyncGateway.setProfile`
+  (`ProfileSet` is per-room, PROTOCOL has no single global profile), a new `DisplayNameStore`
+  persists the onboarding-chosen name, `RealSyncGateway.createRoom`/`joinViaLink` apply it
+  automatically right after success. `MembersViewModel` now materializes the room's content state
+  and looks up each member's profile; `MembersScreen` shows it, falling back to the shortened key
+  only when no profile was ever set. **Confirmed working for a room this device itself
+  created/joined. Confirmed NOT working for a room recovered via restore (seed phrase or backup
+  file) onto a new device - see the next section, a separate pre-existing gap this testing pass
+  surfaced, not something this fix caused or can reasonably fix on its own.**
+- **No way to restore from a backup file during onboarding, only "I already have a seed phrase"**:
+  added a third `ModeSelect` option, a new `EnterBackupPassphrase` step (SAF file pick +
+  passphrase, masked the same way as the Settings fix above), decoding via the same
+  `BackupManager`/`BackupCodec` Settings already uses, then importing the backup's own `rooms[]`
+  (each with its own relay host, unlike seed-restore's single-relay `restoreKnownRooms()` query)
+  directly into `appLocalStore`. **Confirmed end-to-end on-device**: created a real backup from a
+  signed-in session (TestRoom), uninstalled the app, reinstalled fresh, picked "Restore from a
+  backup file," selected the real file from Downloads, entered the real passphrase, entered a
+  display name, "Finish restoring" - landed directly on the Rooms list with TestRoom already
+  present and its full prior content (the "Camping" idea from before the backup) correctly pulled
+  and decrypted. No crash.
+
+### Known gap found during this testing pass (not fixed here)
+
+A device that recovers an **existing** room via restore (seed phrase or backup file) can locally
+sign, enqueue, and successfully push new ops into that room - confirmed directly via the local
+SQLite `ops` table, a real op lands at a real cursor, round-tripped through the relay - but every
+client, including that same device, silently fails to **decrypt/apply** it. Root cause:
+`RealSyncGateway`'s `certResolverFromLog`/`collectUserBoxKeys` only ever resolve a device's cert
+from an entry *that device itself authored* in the room's own locally-stored membership log. A
+freshly-restored device never has one (it didn't create or join this room - an earlier device
+belonging to the same user did), so `certOf(thisDevice)` is always `null` and the op is dropped by
+every `mapNotNull` in `materialize`/`opsSince`. The relay's own `GET /users/{user}/devices` (which
+would resolve this correctly - confirmed it exists server-side, `relay/internal/api/devices.go`)
+has no `SyncClient` wrapper in `core` at all yet. This is pre-existing and affects the already-
+shipped seed-phrase `restoreKnownRooms()` path identically - it isn't specific to the new
+backup-file restore above. Reproduced directly: after the backup-restore flow above, creating a
+new idea in the recovered room, and setting the display name, both silently never appeared, on
+this device or (presumably) any other - confirmed via a direct SQLite read that the ops really did
+land in the local `ops` table at real cursors, not stuck in `outbox` unsent. Fixing this for real
+needs a `SyncClient.listDevicesFor(user)` wrapper plus a `certResolverFromLog` change to consult
+it - a protocol-adjacent core change, out of scope for this pass; flagged here rather than guessed
+at.
+
 ## Item 12: Release build
 
 Build-level verification already done (this environment has no emulator/device, so what
