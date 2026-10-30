@@ -64,5 +64,5 @@ private val SquaddleDarkColorScheme = darkColorScheme(
 @Composable
 public fun SquaddleTheme(content: @Composable () -> Unit) {
     val colorScheme = if (isSystemInDarkTheme()) SquaddleDarkColorScheme else SquaddleLightColorScheme
-    MaterialTheme(colorScheme = colorScheme, content = content)
+    MaterialTheme(colorScheme = colorScheme, typography = SquaddleTypography, shapes = SquaddleShapes, content = content)
 }
