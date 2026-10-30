@@ -30,16 +30,26 @@ jobs:
       # committed) assembled here from environment secrets only - storeFile is a plain relative
       # filename so it resolves the same way regardless of File(rootDir, child)'s exact absolute-
       # path handling. PKCS12 (keytool's current default format) requires the same password for
-      # both storePassword/keyPassword, hence one secret feeding both lines.
+      # both storePassword/keyPassword, hence one secret feeding both lines. Every secret is piped
+      # through `tr -d` to strip embedded newlines/carriage-returns/spaces before use - however
+      # the secret was entered (web UI paste, `gh secret set < file`, etc.) can leave stray
+      # whitespace, and `${{ }}` substitution happens at YAML-parse time, so an embedded newline
+      # in a secret becomes a literal line break in this script, not just an odd character in a
+      # value - this is defensive against that, not proof it already happened. The decoded
+      # keystore's own SHA-256 is logged (not sensitive - it's the same public fingerprint already
+      # committed to website/public/.well-known/assetlinks.json) specifically so a future failure
+      # here is diagnosable from the log alone, unlike this one.
       - name: Write signing config
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
-          cat > keystore.properties <<PROPS
-          storeFile=release.keystore
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          PROPS
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | tr -d '\n\r ' | base64 -d > release.keystore
+          sha256sum release.keystore
+          keytool -list -v -keystore release.keystore -storepass "$(echo -n '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' | tr -d '\n\r')" 2>&1 | grep "SHA256:" || echo "keytool could not read the decoded keystore"
+          {
+            echo "storeFile=release.keystore"
+            printf 'storePassword=%s\n' "$(echo -n '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' | tr -d '\n\r')"
+            printf 'keyAlias=%s\n' "$(echo -n '${{ secrets.ANDROID_KEY_ALIAS }}' | tr -d '\n\r')"
+            printf 'keyPassword=%s\n' "$(echo -n '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' | tr -d '\n\r')"
+          } > keystore.properties
         env: { SQUADDLE_CORE_DIR: ../core }
       - run: ./gradlew :app:assembleFdroidRelease :app:assembleGithubRelease
         env: { SQUADDLE_CORE_DIR: ../core }
