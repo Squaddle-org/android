@@ -47,7 +47,12 @@ jobs:
           {
             echo "storeFile=release.keystore"
             printf 'storePassword=%s\n' "$(echo -n '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' | tr -d '\n\r')"
-            printf 'keyAlias=%s\n' "$(echo -n '${{ secrets.ANDROID_KEY_ALIAS }}' | tr -d '\n\r')"
+            # Not sensitive (it's a label, not a credential - the keystore.properties.example
+            # convention this mirrors never treated it as one either) - hardcoded rather than read
+            # from a secret, since that secret is exactly what v0.1.2's real failure was: "No key
+            # with alias '' found in keystore" - ANDROID_KEY_ALIAS was never actually set, my own
+            # earlier instructions calling it "not really a secret" were the likely reason why.
+            echo "keyAlias=squaddle-release"
             printf 'keyPassword=%s\n' "$(echo -n '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' | tr -d '\n\r')"
           } > keystore.properties
         env: { SQUADDLE_CORE_DIR: ../core }
