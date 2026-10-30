@@ -1,0 +1,143 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  # Runs inside a pinned JDK image (digest, not a floating tag) so the signed release build is
+  # reproducible regardless of what the runner image happens to have installed that week - the
+  # one thing in this workflow that actually needs that guarantee. The release-notes/GitHub-
+  # Release/website-PR orchestration below has no such requirement, so it's a separate job on the
+  # plain runner instead of sharing this container (gh/git/etc. are already there, no reason to
+  # reinstall them inside a bare JDK image).
+  build:
+    runs-on: ubuntu-latest
+    environment: release
+    container:
+      image: eclipse-temurin:17-jdk@sha256:91011320978c10ec51d2cde1eb6f616db6d2a739a0e521096c343dd3fed9abe6
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { path: android }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { repository: squaddle-org/core, path: core }
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@7296c772c13d12d9871528814b51fb2143c138ef # v6.4.1
+      # keystore.properties (android/app/build.gradle.kts's own doc comment: gitignored, never
+      # committed) assembled here from environment secrets only - storeFile is a plain relative
+      # filename so it resolves the same way regardless of File(rootDir, child)'s exact absolute-
+      # path handling. PKCS12 (keytool's current default format) requires the same password for
+      # both storePassword/keyPassword, hence one secret feeding both lines.
+      - name: Write signing config
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          cat > keystore.properties <<PROPS
+          storeFile=release.keystore
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PROPS
+        env: { SQUADDLE_CORE_DIR: ../core }
+      - run: ./gradlew :app:assembleFdroidRelease :app:assembleGithubRelease
+        env: { SQUADDLE_CORE_DIR: ../core }
+      - name: Checksum the release APKs
+        run: |
+          cd app/build/outputs/apk
+          sha256sum fdroid/release/app-fdroid-release.apk > fdroid/release/app-fdroid-release.apk.sha256
+          sha256sum github/release/app-github-release.apk > github/release/app-github-release.apk.sha256
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-apks
+          path: |
+            android/app/build/outputs/apk/fdroid/release/app-fdroid-release.apk
+            android/app/build/outputs/apk/fdroid/release/app-fdroid-release.apk.sha256
+            android/app/build/outputs/apk/github/release/app-github-release.apk
+            android/app/build/outputs/apk/github/release/app-github-release.apk.sha256
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0 } # full history - the changelog step walks every commit since the previous tag
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: release-apks, path: apks }
+
+      - name: Draft release notes from commits since the last tag
+        id: notes
+        run: |
+          prev_tag=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+          {
+            echo "## What's changed"
+            echo
+            if [ -n "$prev_tag" ]; then
+              git log "${prev_tag}..${GITHUB_REF_NAME}" --pretty=format:"- %s (%h)"
+            else
+              git log "${GITHUB_REF_NAME}" --pretty=format:"- %s (%h)"
+            fi
+            echo
+            echo
+            echo "## Deutsch"
+            echo
+            echo "_TODO: kurze deutsche Zusammenfassung vor dem Veröffentlichen ergänzen._"
+            echo
+            echo "## Downloads"
+            echo
+            echo "- \`app-github-release.apk\` - for the self-update checker (Settings -> Check for updates) and manual sideloading. SHA-256 in \`app-github-release.apk.sha256\`."
+            echo "- \`app-fdroid-release.apk\` - matches what F-Droid will build and distribute; attached here for reference/manual installs, not meant to be installed directly long-term once F-Droid picks this up."
+          } > release-notes.md
+          cat release-notes.md
+
+      # Draft, not auto-published: review (German summary above included) then publish by hand on
+      # GitHub - the required-reviewer approval on this job's own `release` environment already
+      # gated signing/building the APKs with the real production key; this is a second, separate
+      # "does this read right" check before the release is actually visible to anyone.
+      - name: Create draft GitHub release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            apks/app-fdroid-release.apk apks/app-fdroid-release.apk.sha256 \
+            apks/app-github-release.apk apks/app-github-release.apk.sha256 \
+            --draft --notes-file release-notes.md --title "$GITHUB_REF_NAME"
+
+      - name: Open a website PR with the new latest.json + assetlinks.json fingerprint
+        env: { GH_TOKEN: "${{ secrets.WEBSITE_REPO_TOKEN }}" }
+        run: |
+          version_name="${GITHUB_REF_NAME#v}"
+          version_code=$(git rev-list --count HEAD)
+          sha256=$(cut -d' ' -f1 apks/app-github-release.apk.sha256)
+
+          git clone --depth 1 https://x-access-token:${GH_TOKEN}@github.com/squaddle-org/website.git website-pr
+          cd website-pr
+          git checkout -b "android-release-${GITHUB_REF_NAME}"
+
+          cat > public/android/latest.json <<JSON
+          {
+            "versionCode": ${version_code},
+            "versionName": "${version_name}",
+            "downloadUrl": "https://github.com/squaddle-org/android/releases/download/${GITHUB_REF_NAME}/app-github-release.apk",
+            "sha256": "${sha256}",
+            "minSupportedVersionCode": ${version_code},
+            "notes": {
+              "en": "See the release notes on GitHub for what's new in ${version_name}.",
+              "de": "Siehe die Release Notes auf GitHub für die Neuerungen in ${version_name}."
+            }
+          }
+          JSON
+
+          git config user.name "squaddle-release-bot"
+          git config user.email "release@squaddle.org"
+          git add public/android/latest.json
+          git commit -m "android: latest.json for ${GITHUB_REF_NAME}"
+          git push origin "android-release-${GITHUB_REF_NAME}"
+          gh pr create --repo squaddle-org/website \
+            --title "android: latest.json for ${GITHUB_REF_NAME}" \
+            --body "Opened automatically by android's release workflow for ${GITHUB_REF_NAME}. Does **not** touch assetlinks.json's sha256_cert_fingerprints - that's the upload-key cert fingerprint (fixed, doesn't change per release), update it by hand once if it's ever out of date, not per-release." \
+            --head "android-release-${GITHUB_REF_NAME}"
