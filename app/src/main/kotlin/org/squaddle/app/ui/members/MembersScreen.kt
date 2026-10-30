@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.squaddle.app.R
+import org.squaddle.app.ui.components.Avatar
 import org.squaddle.core.encoding.Base32
 import org.squaddle.core.membership.Role
 
@@ -104,7 +105,8 @@ private fun SectionHeader(text: String) {
 private fun PendingRow(member: MemberSummary, onApprove: () -> Unit, onReject: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("member_${Base32.encode(member.user)}")) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(displayLabel(member), modifier = Modifier.weight(1f))
+            Avatar(member.user, member.displayName)
+            Text(displayLabel(member), modifier = Modifier.padding(start = 12.dp).weight(1f))
             if (member.canReject) TextButton(onClick = onReject) { Text(stringResource(R.string.members_reject)) }
             if (member.canApprove) TextButton(onClick = onApprove) { Text(stringResource(R.string.members_approve)) }
         }
@@ -124,7 +126,8 @@ private fun MemberRow(
 
     Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).testTag("member_${Base32.encode(member.user)}")) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
+            Avatar(member.user, member.displayName)
+            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
                 Text(displayLabel(member))
                 Text(roleLabel(member.role), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
