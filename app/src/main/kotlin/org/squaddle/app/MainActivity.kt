@@ -495,21 +495,42 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
         // bottom = 88.dp (not 16.dp) clears a bottom-end FAB's own footprint - RoomsListScreen/
         // RoomScreen both place one there, and this Box has no visibility into that Scaffold's
         // own layout to avoid it automatically (found on a real device: the plain 16.dp padding
-        // let the banner's second line render directly under the FAB).
+        // let the banner's second line render directly under the FAB). A real Surface (not bare
+        // Text floating over the list) is what stops this from reading as illegible overlapping
+        // glyphs at large font scale - found on the emulator at font scale 2.0, where the bare-
+        // Text version let its own wrapped second line draw directly on top of a room row behind
+        // it; a solid, elevated, shaped card reads as a single legible thing regardless of how
+        // tall its own text grows, same as a Snackbar would.
         val bannerModifier = Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 88.dp)
         when {
-            outboxCount > 0 -> Text(
-                text = stringResource(R.string.outbox_pending_hint, outboxCount),
+            outboxCount > 0 -> androidx.compose.material3.Surface(
                 modifier = bannerModifier.testTag("outboxBanner"),
-            )
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                tonalElevation = 6.dp,
+            ) {
+                Text(
+                    text = stringResource(R.string.outbox_pending_hint, outboxCount),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+            }
             showInstallNtfyHint -> {
                 val context = LocalContext.current
-                Row(modifier = bannerModifier, verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = stringResource(R.string.push_install_ntfy_hint), modifier = Modifier.weight(1f))
-                    TextButton(
-                        onClick = { openNtfyInstallPage(context) },
-                        modifier = Modifier.testTag("installNtfyButton"),
-                    ) { Text(stringResource(R.string.push_install_ntfy_action)) }
+                androidx.compose.material3.Surface(
+                    modifier = bannerModifier,
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    tonalElevation = 6.dp,
+                ) {
+                    Row(modifier = Modifier.padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = stringResource(R.string.push_install_ntfy_hint), modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+                        TextButton(
+                            onClick = { openNtfyInstallPage(context) },
+                            modifier = Modifier.testTag("installNtfyButton"),
+                        ) { Text(stringResource(R.string.push_install_ntfy_action)) }
+                    }
                 }
             }
         }
