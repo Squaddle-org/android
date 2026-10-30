@@ -47,13 +47,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import kotlinx.coroutines.launch
+import org.squaddle.app.BuildConfig
 import org.squaddle.app.R
 import org.squaddle.app.backup.AutoBackupScheduler
+import org.squaddle.app.update.InstallOutcome
+import org.squaddle.app.update.SelfUpdateChecker
+import org.squaddle.app.update.UpdateCheckResult
 
 private const val BACKUP_MIME_TYPE = "application/octet-stream"
 
 @Composable
-public fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
+public fun SettingsScreen(viewModel: SettingsViewModel, selfUpdateChecker: SelfUpdateChecker, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -137,6 +141,27 @@ public fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                     onDisable = { viewModel.setAutoBackup(enabled = false, uriString = null, passphrase = null, intervalHours = state.autoBackupIntervalHours) },
                     onIntervalChanged = viewModel::updateAutoBackupInterval,
                 )
+            }
+            // github is the only flavor with a real SelfUpdateChecker (fdroid/play both always
+            // report UpToDate, see that class's own doc comments on why) - this section only
+            // makes sense to show at all on that one flavor.
+            if (BuildConfig.FLAVOR == "github") {
+                item { HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp)) }
+                item {
+                    UpdateSection(
+                        inProgress = state.updateCheckInProgress,
+                        result = state.updateCheckResult,
+                        installOutcome = state.installOutcome,
+                        onCheckForUpdate = viewModel::checkForUpdate,
+                        onDismissResult = viewModel::dismissUpdateCheckResult,
+                        onInstall = { update ->
+                            scope.launch {
+                                viewModel.setInstallOutcome(selfUpdateChecker.downloadAndInstall(context, update))
+                            }
+                        },
+                        onDismissInstallOutcome = { viewModel.setInstallOutcome(null) },
+                    )
+                }
             }
         }
     }
@@ -266,6 +291,64 @@ private fun AutoBackupSection(enabled: Boolean, intervalHours: Int, onEnable: ()
             )
         }
     }
+}
+
+@Composable
+private fun UpdateSection(
+    inProgress: Boolean,
+    result: UpdateCheckResult?,
+    installOutcome: InstallOutcome?,
+    onCheckForUpdate: () -> Unit,
+    onDismissResult: () -> Unit,
+    onInstall: (UpdateCheckResult.UpdateAvailable) -> Unit,
+    onDismissInstallOutcome: () -> Unit,
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text(stringResource(R.string.settings_software_update), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.settings_software_update_explainer), modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        Button(onClick = onCheckForUpdate, enabled = !inProgress, modifier = Modifier.testTag("checkForUpdateButton")) {
+            Text(stringResource(R.string.settings_check_for_update))
+        }
+    }
+
+    if (result != null) {
+        when (result) {
+            is UpdateCheckResult.UpToDate -> AlertDialog(
+                onDismissRequest = onDismissResult,
+                title = { Text(stringResource(R.string.settings_software_update)) },
+                text = { Text(stringResource(R.string.settings_update_up_to_date)) },
+                confirmButton = { TextButton(onClick = onDismissResult) { Text(stringResource(R.string.action_ok)) } },
+            )
+            is UpdateCheckResult.CheckFailed -> AlertDialog(
+                onDismissRequest = onDismissResult,
+                title = { Text(stringResource(R.string.settings_software_update)) },
+                text = { Text(stringResource(R.string.settings_update_check_failed, result.message)) },
+                confirmButton = { TextButton(onClick = onDismissResult) { Text(stringResource(R.string.action_ok)) } },
+            )
+            is UpdateCheckResult.UpdateAvailable -> AlertDialog(
+                onDismissRequest = onDismissResult,
+                title = { Text(stringResource(R.string.settings_update_available_title, result.versionName)) },
+                text = { Text(result.notes) },
+                confirmButton = {
+                    Button(onClick = { onInstall(result); onDismissResult() }, modifier = Modifier.testTag("downloadAndInstallUpdateButton")) {
+                        Text(stringResource(R.string.settings_download_and_install))
+                    }
+                },
+                dismissButton = { TextButton(onClick = onDismissResult) { Text(stringResource(R.string.action_cancel)) } },
+            )
+        }
+    }
+
+    if (installOutcome is InstallOutcome.Failed) {
+        AlertDialog(
+            onDismissRequest = onDismissInstallOutcome,
+            title = { Text(stringResource(R.string.settings_software_update)) },
+            text = { Text(installOutcome.message) },
+            confirmButton = { TextButton(onClick = onDismissInstallOutcome) { Text(stringResource(R.string.action_ok)) } },
+        )
+    }
+    // InstallOutcome.Launched needs no dialog of its own - the system's own install-confirmation
+    // UI takes over the screen at that point.
 }
 
 @Composable

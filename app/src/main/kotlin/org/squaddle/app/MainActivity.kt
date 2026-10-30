@@ -389,11 +389,12 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                                 backupManager = container.backupManager,
                                 passphraseVault = container.backupPassphraseVault,
                                 autoBackupSettings = container.autoBackupSettings,
+                                selfUpdateChecker = container.selfUpdateChecker,
                             )
                         }
                     },
                 )
-                SettingsScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
+                SettingsScreen(viewModel = viewModel, selfUpdateChecker = container.selfUpdateChecker, onBack = { navController.popBackStack() })
             }
             composable<Route.DeveloperSettings> {
                 val viewModel: DeveloperSettingsViewModel = viewModel(

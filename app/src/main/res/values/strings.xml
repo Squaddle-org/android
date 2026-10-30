@@ -172,6 +172,13 @@
     <string name="settings_restore_explainer">Import the room list from a backup file for this same account.</string>
     <string name="settings_restore_from_backup">Restore from backup</string>
     <string name="settings_automatic_backups">Automatic backups</string>
+    <string name="settings_software_update">Software update</string>
+    <string name="settings_software_update_explainer">Squaddle never checks for updates on its own - tap below to check manually.</string>
+    <string name="settings_check_for_update">Check for updates</string>
+    <string name="settings_update_up_to_date">You\'re on the latest version.</string>
+    <string name="settings_update_check_failed">Couldn\'t check for updates: %1$s</string>
+    <string name="settings_update_available_title">Version %1$s is available</string>
+    <string name="settings_download_and_install">Download &amp; install</string>
     <string name="settings_interval_hours_label">Interval (hours)</string>
     <string name="settings_passphrase_label">Passphrase</string>
     <string name="settings_show_passphrase">Show passphrase</string>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- github-flavor-only permission (AGP merges this into the main manifest automatically for this
+     flavor only): the install-confirmation flow org.squaddle.app.update.SelfUpdateChecker drives
+     via PackageInstaller.Session needs it; fdroid/play never install anything themselves (their
+     own stores/clients own that), so neither declares it - keeps their permission footprint
+     unchanged, which matters in particular for fdroid's F-Droid review. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+</manifest>

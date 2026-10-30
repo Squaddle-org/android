@@ -14,6 +14,9 @@ import org.squaddle.app.backup.BackupWriteOutcome
 import org.squaddle.app.backup.toBackupRoomRef
 import org.squaddle.app.backup.toRoomIdAndRelayHost
 import org.squaddle.app.store.AppLocalStore
+import org.squaddle.app.update.InstallOutcome
+import org.squaddle.app.update.SelfUpdateChecker
+import org.squaddle.app.update.UpdateCheckResult
 import org.squaddle.core.crypto.Crypto
 import org.squaddle.core.identity.UserIdentity
 
@@ -26,6 +29,9 @@ public data class SettingsUiState(
     public val restoreResultMessage: String? = null,
     public val autoBackupEnabled: Boolean = false,
     public val autoBackupIntervalHours: Int = 24,
+    public val updateCheckInProgress: Boolean = false,
+    public val updateCheckResult: UpdateCheckResult? = null,
+    public val installOutcome: InstallOutcome? = null,
 )
 
 /**
@@ -47,6 +53,7 @@ public class SettingsViewModel(
     private val backupManager: BackupManager,
     private val passphraseVault: BackupPassphraseVault,
     private val autoBackupSettings: AutoBackupSettingsStore,
+    private val selfUpdateChecker: SelfUpdateChecker,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -140,5 +147,26 @@ public class SettingsViewModel(
         if (!_uiState.value.autoBackupEnabled) return
         autoBackupSettings.set(enabled = true, uriString = autoBackupSettings.uriString(), intervalHours = hours)
         _uiState.value = _uiState.value.copy(autoBackupIntervalHours = hours)
+    }
+
+    /** Manual only - called from a single Settings-screen button tap, never on a timer. Needs no
+     * [android.content.Context] (a plain network call + a version-code comparison), unlike
+     * [SelfUpdateChecker.downloadAndInstall] (needs `PackageManager`) - that one stays a direct
+     * Composable-side call, the same Context-stays-out-of-ViewModels split this screen's own
+     * [org.squaddle.app.backup.AutoBackupScheduler] usage already established. */
+    public fun checkForUpdate() {
+        _uiState.value = _uiState.value.copy(updateCheckInProgress = true, updateCheckResult = null)
+        viewModelScope.launch {
+            val result = selfUpdateChecker.checkForUpdate()
+            _uiState.value = _uiState.value.copy(updateCheckInProgress = false, updateCheckResult = result)
+        }
+    }
+
+    public fun dismissUpdateCheckResult() {
+        _uiState.value = _uiState.value.copy(updateCheckResult = null)
+    }
+
+    public fun setInstallOutcome(outcome: InstallOutcome?) {
+        _uiState.value = _uiState.value.copy(installOutcome = outcome)
     }
 }

@@ -22,6 +22,7 @@ import org.squaddle.app.settings.DisplayNameStore
 import org.squaddle.app.settings.NotificationPermissionGate
 import org.squaddle.app.store.AndroidAppLocalStore
 import org.squaddle.app.store.AppLocalStore
+import org.squaddle.app.update.SelfUpdateChecker
 import org.squaddle.core.crypto.Crypto
 import org.squaddle.core.crypto.KeyPair
 import org.squaddle.core.crypto.LibsodiumCrypto
@@ -48,6 +49,7 @@ public class AppContainer(private val context: Context) {
     public val backupManager: BackupManager by lazy { AndroidBackupManager(context, crypto) }
     public val backupPassphraseVault: BackupPassphraseVault = AndroidBackupPassphraseVault(context)
     public val autoBackupSettings: AutoBackupSettingsStore = AndroidAutoBackupSettingsStore(context)
+    public val selfUpdateChecker: SelfUpdateChecker = SelfUpdateChecker()
 
     /** The relay host every client-initiated action (create room, register device, seed-restore
      * room recovery) talks to - a debug-build override if one is set, else the build's own

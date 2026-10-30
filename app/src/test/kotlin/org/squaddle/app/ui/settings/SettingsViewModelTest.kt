@@ -15,6 +15,7 @@ import org.squaddle.app.backup.FakeBackupManager
 import org.squaddle.app.backup.FakeBackupPassphraseVault
 import org.squaddle.app.data.FakeCrypto
 import org.squaddle.app.store.FakeAppLocalStore
+import org.squaddle.app.update.SelfUpdateChecker
 import org.squaddle.core.backup.BackupContent
 import org.squaddle.core.backup.BackupRoomRef
 import org.squaddle.core.identity.UserIdentity
@@ -47,7 +48,7 @@ class SettingsViewModelTest {
         backupManager: FakeBackupManager = FakeBackupManager(),
         passphraseVault: FakeBackupPassphraseVault = FakeBackupPassphraseVault(),
         autoBackupSettings: FakeAutoBackupSettingsStore = FakeAutoBackupSettingsStore(),
-    ): SettingsViewModel = SettingsViewModel(FakeCrypto, identity, appLocalStore, backupManager, passphraseVault, autoBackupSettings)
+    ): SettingsViewModel = SettingsViewModel(FakeCrypto, identity, appLocalStore, backupManager, passphraseVault, autoBackupSettings, SelfUpdateChecker())
 
     @Test
     fun mnemonicIsPopulatedFromTheIdentityAtConstruction() {
