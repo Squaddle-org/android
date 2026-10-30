@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -97,6 +98,12 @@ public class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Status/nav bars transparent with auto light/dark icon contrast; Theme.Squaddle's old
+        // android:statusBarColor (a solid brand-coral bar, pre-edge-to-edge style) is gone from
+        // themes.xml - Material3's own TopAppBar/Scaffold already draw their surface color up
+        // behind the transparent bars and inset their content below them, API 26..34 included
+        // (API 35+ enforces this regardless, per Theme.Squaddle's own doc comment).
+        enableEdgeToEdge()
         pendingDeepLink.value = intent?.data?.toString()
         setContent {
             SquaddleTheme {
