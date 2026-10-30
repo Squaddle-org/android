@@ -141,10 +141,11 @@ private const val NTFY_PACKAGE_ID = "io.heckel.ntfy"
  * The install-ntfy banner's own button. `play` opens the Play Store listing (`market://` so it
  * opens in the Play Store app itself rather than a browser tab, falling back to the plain
  * `https://play.google.com/store/...` web URL if nothing handles `market://` - an emulator/AOSP
- * build with no Play Store app installed, say); `foss` opens ntfy's F-Droid listing instead,
- * consistent with android/CLAUDE.md's "foss: no Google deps at all, F-Droid" split - the same
- * flavor-aware posture `InstallReferrerChecker` already uses, just as a plain URI rather than a
- * whole separate flavor source set (there's no API difference to abstract here, only the link).
+ * build with no Play Store app installed, say); `fdroid`/`github` open ntfy's F-Droid listing
+ * instead (ntfy itself is still F-Droid-distributed regardless of which flavor of this app is
+ * asking) - the same flavor-aware posture `InstallReferrerChecker` already uses, just as a plain
+ * URI rather than a whole separate flavor source set (there's no API difference to abstract here,
+ * only the link).
  */
 private fun openNtfyInstallPage(context: Context) {
     val uri = if (BuildConfig.FLAVOR == "play") {
@@ -326,8 +327,8 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
 
     // Play flavor's deferred deep link (android/CLAUDE.md M4b item 9) - a second source feeding
     // the exact same join-flow entry point as the clipboard/App-Link checks, not new join logic.
-    // `InstallReferrerChecker` is the `foss`-flavor-always-null version unless this is a `play`
-    // build (see that class's own two flavor-specific source files).
+    // `InstallReferrerChecker` is the always-null `fdroid`/`github` version unless this is a
+    // `play` build (see that class's own three flavor-specific source files).
     LaunchedEffect(Unit) {
         val referrer = InstallReferrerChecker().referrerUrl(context) ?: return@LaunchedEffect
         val link = gateway.parseInviteLink(referrer) ?: extractLinkParam(referrer)?.let { gateway.parseInviteLink(it) }

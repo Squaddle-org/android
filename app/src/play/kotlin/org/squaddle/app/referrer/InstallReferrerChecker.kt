@@ -9,8 +9,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 /**
- * `play` flavor's version of this class (android/CLAUDE.md M4b item 9 - the `foss` flavor's
- * own copy of the same class, under its own source set, always returns `null`). Deferred deep
+ * `play` flavor's version of this class (android/CLAUDE.md M4b item 9 - the `fdroid`/`github`
+ * flavors' own copies of the same class, each under its own source set, always return `null`).
+ * Deferred deep
  * links: a user who tapped a Squaddle invite link on the Play Store listing (before the app was
  * even installed) has that link preserved by Play and readable here, once, right after first
  * launch - Google's own docs: "the install referrer is available for 90 days and won't change

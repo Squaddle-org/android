@@ -61,12 +61,22 @@ android {
         buildConfigField("String", "DEFAULT_RELAY_HOST", "\"relay.squaddle.org\"")
     }
 
-    // android/CLAUDE.md: foss (no Google deps at all, F-Droid) and play (Play Billing only, not
-    // added yet - M5b). Dimension name is purely internal, never user-visible.
+    // android/CLAUDE.md: three distribution flavors, all GMS-free except play. Dimension name is
+    // purely internal, never user-visible.
     flavorDimensions += "distribution"
     productFlavors {
-        create("foss") {
+        create("fdroid") {
             dimension = "distribution"
+            // F-Droid's own client owns updates for this build - SelfUpdateChecker's fdroid-
+            // flavor source set is a permanent no-op (that file's own doc comment), matching
+            // F-Droid's reproducible-build policy against apps phoning home for updates.
+        }
+        create("github") {
+            dimension = "distribution"
+            // Same GMS-free posture as fdroid (CI's GMS/Firebase classpath check covers both),
+            // but this is the flavor attached to GitHub Releases, so it carries the real
+            // SelfUpdateChecker implementation (manual "Check for updates" only - no background
+            // polling, matching this app's existing zero-phone-home posture everywhere else).
         }
         create("play") {
             dimension = "distribution"

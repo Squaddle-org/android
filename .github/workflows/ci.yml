@@ -8,6 +8,19 @@ jobs:
     defaults:
       run:
         working-directory: android
+    # fdroid and github are both GMS-free and otherwise identical from CI's point of view (only
+    # github carries the real SelfUpdateChecker, which doesn't change what gets built/tested here)
+    # - a matrix avoids duplicating every step below twice.
+    strategy:
+      matrix:
+        # Gradle task/configuration names need the flavor capitalized (assembleFdroidDebug); the
+        # APK output path and artifact name use it lowercase (outputs/apk/fdroid/debug/...) -
+        # carrying both forms here avoids a run-time `tr`/templating step just to get casing right.
+        include:
+          - flavor: fdroid
+            Flavor: Fdroid
+          - flavor: github
+            Flavor: Github
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { path: android }
@@ -21,25 +34,25 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
       - uses: gradle/actions/setup-gradle@7296c772c13d12d9871528814b51fb2143c138ef # v6.4.1
-      - run: ./gradlew :app:assembleFossDebug
+      - run: ./gradlew :app:assemble${{ matrix.Flavor }}Debug
         env: { SQUADDLE_CORE_DIR: ../core }
       # Debug build, self-signed by AGP's built-in debug keystore - installable, but not a
-      # release artifact. No signed-release pipeline exists yet (needs a real signing keystore +
-      # secrets, a separate decision).
+      # release artifact. The signed release pipeline is release.yml (tag-triggered, pinned
+      # container, protected environment), not this workflow.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: app-foss-debug
-          path: android/app/build/outputs/apk/foss/debug/app-foss-debug.apk
+          name: app-${{ matrix.flavor }}-debug
+          path: android/app/build/outputs/apk/${{ matrix.flavor }}/debug/app-${{ matrix.flavor }}-debug.apk
           if-no-files-found: error
-      - run: ./gradlew :app:testFossDebugUnitTest
+      - run: ./gradlew :app:test${{ matrix.Flavor }}DebugUnitTest
         env: { SQUADDLE_CORE_DIR: ../core }
-      # android/CLAUDE.md: foss must never pull in Google Play Services/Firebase.
-      - name: Verify foss classpath has no GMS/Firebase
+      # android/CLAUDE.md: fdroid/github must never pull in Google Play Services/Firebase.
+      - name: Verify ${{ matrix.flavor }} classpath has no GMS/Firebase
         env: { SQUADDLE_CORE_DIR: ../core }
         run: |
-          ./gradlew :app:dependencies --configuration fossDebugRuntimeClasspath > deps.txt
+          ./gradlew :app:dependencies --configuration ${{ matrix.flavor }}DebugRuntimeClasspath > deps.txt
           if grep -Eq 'com\.google\.android\.gms|com\.google\.firebase' deps.txt; then
-            echo "GMS/Firebase artifact found on the foss classpath:"
+            echo "GMS/Firebase artifact found on the ${{ matrix.flavor }} classpath:"
             grep -E 'com\.google\.android\.gms|com\.google\.firebase' deps.txt
             exit 1
           fi

@@ -1,6 +1,6 @@
 # Manual testing (M4b)
 
-One phone (or emulator with Play Services absent - the `foss` flavor needs none) running the app,
+One phone (or emulator with Play Services absent - the `fdroid`/`github` flavors need none) running the app,
 plus `core/cli`'s JVM harness (`cd ../core && ./gradlew :cli:installDist`, then
 `cli/build/install/cli/bin/cli ...`) as a second client against the same relay. Each item below
 gets its own section as it lands; sections aren't deleted once an item changes later - update in
@@ -197,9 +197,10 @@ Needs a real Play Console listing with a referrer-tagged install link, or
    genuinely new install) with a referrer set as above.
 2. Complete onboarding; confirm the Join confirmation screen appears automatically on first
    launch with the room name from the invite, with no App Link or clipboard involved.
-3. Repeat the same check on `fossDebug`; confirm nothing happens (no crash, no join prompt) -
-   `InstallReferrerChecker.referrerUrl` always returns `null` there, and `com.android.installreferrer`
-   never appears on `foss`'s classpath (CI's own `fossRelease` GMS-free check covers this).
+3. Repeat the same check on `fdroidDebug` (and `githubDebug`); confirm nothing happens (no crash,
+   no join prompt) - `InstallReferrerChecker.referrerUrl` always returns `null` there, and
+   `com.android.installreferrer` never appears on either GMS-free flavor's classpath (CI's own
+   `fdroidRelease`/`githubRelease` GMS-free check covers this).
 4. Confirm an App Link or clipboard-pasted invite opened at the same time as a referrer still
    takes priority (`joinLink != null` short-circuits the referrer check) - the referrer path
    never overrides an already-active join flow.
@@ -417,7 +418,7 @@ at.
 Build-level verification already done (this environment has no emulator/device, so what
 follows is what's actually been checked vs. what still needs a real device):
 
-- **Checked**: `./gradlew :app:assembleFossRelease` and `:app:assemblePlayRelease` both succeed
+- **Checked**: `./gradlew :app:assembleFdroidRelease` and `:app:assemblePlayRelease` both succeed
   with `isMinifyEnabled`/`isShrinkResources` now on (previously `false`); both produce a real
   `-unsigned.apk` and a `mapping.txt`. Inspected `mapping.txt` directly: every
   `com.ionspin.kotlin.crypto.*` class (the libsodium bindings' JNA interface layer) and every
@@ -428,7 +429,7 @@ follows is what's actually been checked vs. what still needs a real device):
   `git describe --tags --always --dirty` correctly (verified: `30` / `d0cd34b-dirty` at the time
   of that build, matching the repo's actual commit count and HEAD).
 - **Still needs a real device/emulator** (do this before any real release): install the signed
-  (or unsigned, sideloaded) `fossRelease`/`playRelease` APK and walk through the FULL manual test
+  (or unsigned, sideloaded) `fdroidRelease`/`githubRelease`/`playRelease` APK and walk through the FULL manual test
   plan above (items 1-11) against it specifically, not just `*Debug` builds. R8 stripping/
   renaming failures are silent at build time and only surface as a runtime
   `ClassNotFoundException`/`SerializationException`/reflection failure - a clean build log here

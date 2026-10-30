@@ -4,7 +4,7 @@ Not scaffolded yet on purpose — start after `core` milestone M3 (see [spec ROA
 
 Plan:
 - Compose + Material 3, single-activity, `minSdk 26`, applicationId `org.squaddle`
-- Flavors `foss` / `play`
+- Flavors `fdroid` / `github` / `play`
 - App Links: intent-filter `autoVerify="true"` for `https://squaddle.org/j/*` (+ `assetlinks.json` in the website repo, include the Play App Signing fingerprint)
 - Background: UnifiedPush connector → WorkManager one-shot sync; periodic fallback sync
 - Seed at rest: encrypted with an Android Keystore key (optional biometric lock)
