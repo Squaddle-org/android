@@ -11,9 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -190,8 +187,21 @@ private fun SeedSection(revealed: Boolean, mnemonic: List<String>, onRevealReque
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
         )
         if (revealed) {
-            LazyVerticalGrid(columns = GridCells.Fixed(3), modifier = Modifier.testTag("seedWordsGrid")) {
-                items(mnemonic) { word -> Text(word, modifier = Modifier.padding(4.dp)) }
+            // A plain chunked Column/Row, not LazyVerticalGrid: a lazy layout placed inside
+            // SettingsScreen's own outer LazyColumn item{} block, with no bounded height, crashes
+            // the instant it measures ("Vertically scrollable component was measured with an
+            // infinity maximum height constraints... nesting layouts like LazyColumn and
+            // Column(Modifier.verticalScroll())") - reproduced live on-device, every single time
+            // seed reveal succeeds, nothing to do with the biometric prompt itself. 24 words is a
+            // small, fixed-size list - there's no reason for it to be lazy/virtualized at all.
+            Column(modifier = Modifier.testTag("seedWordsGrid")) {
+                for (row in mnemonic.chunked(3)) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        for (word in row) {
+                            Text(word, modifier = Modifier.weight(1f).padding(4.dp))
+                        }
+                    }
+                }
             }
             TextButton(onClick = onHide, modifier = Modifier.padding(top = 8.dp)) { Text(stringResource(R.string.settings_hide)) }
         } else {
