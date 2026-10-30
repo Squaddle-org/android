@@ -39,8 +39,8 @@ instead.
    ```
 4. Within a few seconds, the phone should show a system notification "New idea in <room name>"
    on the "New ideas" channel - without the app having to be open or even in the foreground.
-   Tap it; confirm it opens the app (not yet deep-linked to the specific room - a known,
-   deliberate M4b scope cut, see RoomSyncNotifier's doc comment).
+   Tap it; confirm it deep-links straight to that idea's detail screen (synthetic back stack
+   Rooms → Room → Idea - see "Push notification end-to-end" below for the full verified flow).
 5. Repeat with `$CLI idea comment`, `$CLI event create`, `$CLI event rsvp` - confirm each posts
    to its own channel ("New comments"/"New events"/"RSVP updates").
 6. Tap the bell icon in the room's top bar to mute it (toggles to a crossed-out bell).
@@ -58,6 +58,52 @@ instead.
 4. From the CLI harness, create an idea in a shared room; force-run the periodic worker early
    (Background Task Inspector supports this) rather than waiting 6h; confirm the notification
    still appears via this path with no push involved at all.
+
+## Push notification end-to-end (item-level diffing, verified)
+
+Verified against the real deployed relay (`relay.squaddle.org`), a second identity via the CLI
+harness, and a real emulator - full flow below, incl. how to trigger a sync without waiting for
+a real push or the 6h periodic fallback.
+
+**Triggering a sync on demand.** Neither path is practical for fast manual iteration: no real
+UnifiedPush distributor is installed on a bare test device/emulator, and WorkManager refuses to
+run a `PeriodicWorkRequest` early even when forced via `adb shell cmd jobscheduler run -f`
+(confirmed directly - it logs "Delaying execution... because it is being executed before
+schedule" and reschedules instead of running). Developer settings (debug builds only, bug icon
+on the rooms list) has a "Trigger sync now" button for exactly this - it enqueues the same
+`OneTimeWorkRequest<SyncAllRoomsWorker>` `SquaddlePushService.onMessage` does, so it exercises
+the real worker/notifier code, not a shortcut.
+
+**CLI harness against a real relay.** `core/cli`'s `Main.kt` hardcodes `tls=false` (plain HTTP)
+for talking to a locally-run relay binary. A real deployment TLS-terminates upstream and
+308-redirects plain HTTP, which this CLI doesn't follow - set `SQUADDLE_CLI_TLS=true` to switch
+it to HTTPS and point `-relay` at a real host:
+```bash
+export SQUADDLE_CLI_TLS=true
+cli identity create -data-dir ./cli-second -label "CLI-Second"
+cli room join -data-dir ./cli-second "<invite link from the app's Invite screen>"
+cli idea add -data-dir ./cli-second -relay relay.squaddle.org "<roomRef>@relay.squaddle.org" "An idea"
+```
+
+**Full flow, as verified:**
+1. Phone: create a room, invite icon → Share invite link → pull the link's text off-device
+   (e.g. `uiautomator dump` + grep the share-sheet's text) instead of actually sharing it.
+2. CLI: `identity create` + `room join` with that link (`SQUADDLE_CLI_TLS=true`, see above).
+3. CLI: `idea add` in that room - a different author than the phone's identity, which is the
+   condition `RoomSyncNotifier` requires to notify at all (never notifies your own actions, see
+   `AuthoredOp`/the `filterNot { it.author.contentEquals(myUserKey) }` filters).
+4. Phone: from a clean Rooms-list (back out of Developer settings first - the deep link pushes
+   *on top of* whatever's already on the back stack by design, see `navigateToRoomDeepLink`'s
+   own doc comment, so starting clean is what makes the stack exactly Rooms → Room → Idea),
+   open Developer settings → Trigger sync now.
+5. Confirm via `adb shell dumpsys notification --noredact` that two `NotificationRecord`s appear
+   (one per-item, one group summary), `channel=idea`, `vis=PRIVATE`, grouped by
+   `groupKey=room_<roomIdB32>` - or just pull down the notification shade and look.
+6. Tap the notification; confirm it opens the idea's detail screen directly (not the room list,
+   not a generic "open the app").
+7. Back twice; confirm Idea → Room → Rooms list, landing cleanly on the rooms list (not some
+   intermediate state) - the normal back-navigation chain, unaffected by having arrived via a
+   deep link rather than a tap from within the app.
 
 ## Item 6: Events + RSVP + calendar export
 
