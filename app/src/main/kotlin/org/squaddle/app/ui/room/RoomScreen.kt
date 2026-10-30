@@ -4,6 +4,9 @@ package org.squaddle.app.ui.room
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -89,6 +92,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import org.squaddle.core.encoding.Base32
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 public fun RoomScreen(
     viewModel: RoomViewModel,
@@ -99,6 +103,10 @@ public fun RoomScreen(
     onOpenVoucherRedeem: () -> Unit = {},
     onOpenIdea: (ByteArray) -> Unit = {},
     onOpenEvent: (ByteArray) -> Unit = {},
+    // Null outside a real NavHost (Roborazzi/preview/unit-test callers) - IdeaRow then just skips
+    // the shared-element modifier and renders as a plain Text, same as before this pass.
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val state by viewModel.uiState.collectAsState()
     var showCreateIdeaDialog by remember { mutableStateOf(false) }
@@ -197,6 +205,8 @@ public fun RoomScreen(
                             ideas = state.ideas,
                             onSelect = onOpenIdea,
                             onVote = { ideaId, dir -> viewModel.toggleVote(ideaId, dir) },
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
                         )
                     }
                 }
@@ -254,8 +264,15 @@ public fun RoomScreen(
  * one) and "a deep link named an idea that doesn't exist (any more)" with the one check, the same
  * way [Route.Join]'s own malformed-link case pops itself.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-public fun IdeaDetailScreen(viewModel: RoomViewModel, ideaId: ByteArray, onBack: () -> Unit) {
+public fun IdeaDetailScreen(
+    viewModel: RoomViewModel,
+    ideaId: ByteArray,
+    onBack: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+) {
     val state by viewModel.uiState.collectAsState()
     var convertEventRequested by remember { mutableStateOf(false) }
 
@@ -287,6 +304,8 @@ public fun IdeaDetailScreen(viewModel: RoomViewModel, ideaId: ByteArray, onBack:
         onDelete = { viewModel.deleteIdea(idea.id) },
         onAddComment = { text -> viewModel.addComment(idea.id, text) },
         onDeleteComment = { commentId -> viewModel.deleteComment(commentId) },
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onConvertToEvent = { convertEventRequested = true },
     )
 
@@ -364,34 +383,71 @@ private fun EmptyIdeasState(modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun IdeasList(
     ideas: List<IdeaSummary>,
     modifier: Modifier = Modifier,
     onSelect: (ByteArray) -> Unit,
     onVote: (ByteArray, Int) -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     LazyColumn(modifier = modifier.fillMaxSize()) {
         items(ideas, key = { Base32.encode(it.id) }) { idea ->
-            IdeaRow(idea, onClick = { onSelect(idea.id) }, onVote = { dir -> onVote(idea.id, dir) })
+            IdeaRow(
+                idea,
+                onClick = { onSelect(idea.id) },
+                onVote = { dir -> onVote(idea.id, dir) },
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun IdeaRow(idea: IdeaSummary, onClick: () -> Unit, onVote: (Int) -> Unit) {
+private fun IdeaRow(
+    idea: IdeaSummary,
+    onClick: () -> Unit,
+    onVote: (Int) -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).testTag("idea_${Base32.encode(idea.id)}"),
     ) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(idea.title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    idea.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.ideaTitleSharedElement(idea.id, sharedTransitionScope, animatedVisibilityScope),
+                )
                 idea.desc?.let { Text(it, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp)) }
             }
             VoteControl(score = idea.score, myVote = idea.myVote, onVote = onVote, modifier = Modifier.padding(start = 8.dp))
         }
     }
+}
+
+/** Shared by [IdeaRow]'s title and [IdeaDetail]'s header `Text` - the one visual anchor that
+ * morphs position/size/font between the list and detail screen ("container transform list ->
+ * detail" in the design-pass spec). A no-op `Modifier` when either scope is null (no NavHost
+ * around this screen - Roborazzi/preview/unit-test callers), so both call sites render as plain
+ * `Text` exactly as before this pass in that case. */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun Modifier.ideaTitleSharedElement(
+    ideaId: ByteArray,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+): Modifier {
+    if (sharedTransitionScope == null || animatedVisibilityScope == null) return this
+    val state = sharedTransitionScope.rememberSharedContentState(key = "idea_title_${Base32.encode(ideaId)}")
+    return with(sharedTransitionScope) { this@ideaTitleSharedElement.sharedElement(state, animatedVisibilityScope) }
 }
 
 /**
@@ -462,6 +518,7 @@ private fun VoteControl(score: Int, myVote: Int, onVote: (Int) -> Unit, modifier
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun IdeaDetail(
     idea: IdeaSummary,
@@ -475,6 +532,8 @@ private fun IdeaDetail(
     onAddComment: (String) -> Unit,
     onDeleteComment: (ByteArray) -> Unit,
     onConvertToEvent: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -483,7 +542,11 @@ private fun IdeaDetail(
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.room_back_to_ideas)) }
-            Text(idea.title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            Text(
+                idea.title,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.weight(1f).ideaTitleSharedElement(idea.id, sharedTransitionScope, animatedVisibilityScope),
+            )
             if (idea.canEditOrDelete) {
                 IconButton(onClick = { showEditDialog = true }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.room_edit_idea)) }
                 IconButton(onClick = { showDeleteConfirm = true }) { Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.room_delete_idea)) }

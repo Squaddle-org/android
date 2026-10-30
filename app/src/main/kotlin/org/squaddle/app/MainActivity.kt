@@ -11,6 +11,8 @@ import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -234,6 +236,7 @@ private fun SquaddleApp(pendingDeepLink: MutableState<String?>) {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<String?>) {
     val gateway = remember { container.syncGateway() }
@@ -352,6 +355,16 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        // Design-pass spec's "container transform list -> detail": the idea title text morphs
+        // position/size/font between RoomScreen's list row and IdeaDetailScreen's header, instead
+        // of the list simply cross-fading out while the detail screen fades in underneath. The
+        // whole NavHost has to sit inside one SharedTransitionLayout (the shared element is laid
+        // out/measured by a single parent that straddles both destinations across the
+        // transition); each composable<T> { } lambda below is itself an AnimatedContentScope
+        // (navigation-compose 2.8+), threaded into RoomScreen/IdeaDetailScreen as a nullable param
+        // so Roborazzi/unit tests that render those screens with no NavHost around them (no
+        // shared-element behavior there) keep compiling unchanged.
+        SharedTransitionLayout {
         NavHost(navController = navController, startDestination = Route.RoomsList) {
             composable<Route.RoomsList> {
                 val viewModel: RoomsListViewModel = viewModel(
@@ -407,6 +420,8 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                     onOpenVoucherRedeem = { navController.navigate(Route.VoucherRedeem(route.roomIdB32)) },
                     onOpenIdea = { ideaId -> navController.navigate(Route.Idea(route.roomIdB32, Base32.encode(ideaId))) },
                     onOpenEvent = { eventId -> navController.navigate(Route.Event(route.roomIdB32, Base32.encode(eventId))) },
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@composable,
                 )
             }
             composable<Route.Idea> { backStackEntry ->
@@ -425,7 +440,13 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                         initializer { RoomViewModel(Base32.decode(route.roomIdB32) ?: ByteArray(0), container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
                     },
                 )
-                IdeaDetailScreen(viewModel = viewModel, ideaId = ideaId, onBack = { navController.popBackStack() })
+                IdeaDetailScreen(
+                    viewModel = viewModel,
+                    ideaId = ideaId,
+                    onBack = { navController.popBackStack() },
+                    sharedTransitionScope = this@SharedTransitionLayout,
+                    animatedVisibilityScope = this@composable,
+                )
             }
             composable<Route.Event> { backStackEntry ->
                 val route: Route.Event = backStackEntry.toRoute()
@@ -478,6 +499,7 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                     )
                 }
             }
+        }
         }
 
         clipboardSuggestion?.let { suggestion ->
