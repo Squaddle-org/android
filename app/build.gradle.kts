@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.sqldelight)
+    alias(libs.plugins.roborazzi)
 }
 
 /** `null` if `git` isn't on `PATH`, this isn't a git checkout, or there's no tag at all yet -
@@ -176,4 +177,18 @@ dependencies {
     testImplementation(libs.work.testing)
     testImplementation(platform(libs.compose.bom))
     testImplementation("androidx.compose.ui:ui-test-junit4")
+
+    // Design-pass spec's "lock it in" step: Roborazzi renders each screenshot test's Composable
+    // under Robolectric (JVM, no emulator) and diffs it against a committed reference PNG under
+    // src/test/screenshots/ - a size/color/layout regression fails the test instead of only
+    // surfacing in a manual look-through. roborazzi-compose adds the Compose-specific
+    // captureRoboImage(); roborazzi-junit-rule's RoborazziRule is what actually decides
+    // record-vs-verify per the -Proborazzi.test.record system property the Gradle plugin wires up.
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(libs.roborazzi.junit.rule)
+}
+
+roborazzi {
+    outputDir.set(file("src/test/screenshots"))
 }
