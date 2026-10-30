@@ -58,19 +58,23 @@ jobs:
         env: { SQUADDLE_CORE_DIR: ../core }
       - run: ./gradlew :app:assembleFdroidRelease :app:assembleGithubRelease
         env: { SQUADDLE_CORE_DIR: ../core }
-      - name: Checksum the release APKs
+      # Staged into one flat directory before upload rather than listing the real nested build
+      # output paths directly - upload-artifact preserves structure relative to the common
+      # ancestor of whatever paths it's given, which the v0.1.3 run's own real failure confirmed
+      # does NOT mean "flat files at the artifact root" the way the download side (further down)
+      # assumed; a flat staging dir sidesteps needing to know its exact common-ancestor logic.
+      - name: Stage the release APKs
         run: |
-          cd app/build/outputs/apk
-          sha256sum fdroid/release/app-fdroid-release.apk > fdroid/release/app-fdroid-release.apk.sha256
-          sha256sum github/release/app-github-release.apk > github/release/app-github-release.apk.sha256
+          mkdir -p release-apks
+          cp app/build/outputs/apk/fdroid/release/app-fdroid-release.apk release-apks/
+          cp app/build/outputs/apk/github/release/app-github-release.apk release-apks/
+          cd release-apks
+          sha256sum app-fdroid-release.apk > app-fdroid-release.apk.sha256
+          sha256sum app-github-release.apk > app-github-release.apk.sha256
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-apks
-          path: |
-            android/app/build/outputs/apk/fdroid/release/app-fdroid-release.apk
-            android/app/build/outputs/apk/fdroid/release/app-fdroid-release.apk.sha256
-            android/app/build/outputs/apk/github/release/app-github-release.apk
-            android/app/build/outputs/apk/github/release/app-github-release.apk.sha256
+          path: android/release-apks
           if-no-files-found: error
 
   release:
