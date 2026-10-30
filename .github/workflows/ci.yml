@@ -1,5 +1,7 @@
 name: ci
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -7,24 +9,24 @@ jobs:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { path: android }
       # core has no publish step (android/CLAUDE.md: "Local dev against an unreleased core" is
       # the only supported mode) - org.squaddle:core:0.1.0-SNAPSHOT is never resolvable from
       # google()/mavenCentral(), so CI needs the same composite-build substitution local dev uses
       # (settings.gradle.kts's SQUADDLE_CORE_DIR), checked out as a true sibling directory.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { repository: squaddle-org/core, path: core }
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with: { distribution: temurin, java-version: '17' }
-      - uses: android-actions/setup-android@v4
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+      - uses: gradle/actions/setup-gradle@7296c772c13d12d9871528814b51fb2143c138ef # v6.4.1
       - run: ./gradlew :app:assembleFossDebug
         env: { SQUADDLE_CORE_DIR: ../core }
       # Debug build, self-signed by AGP's built-in debug keystore - installable, but not a
       # release artifact. No signed-release pipeline exists yet (needs a real signing keystore +
       # secrets, a separate decision).
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: app-foss-debug
           path: android/app/build/outputs/apk/foss/debug/app-foss-debug.apk
