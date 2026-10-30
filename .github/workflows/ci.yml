@@ -16,11 +16,16 @@ jobs:
         # Gradle task/configuration names need the flavor capitalized (assembleFdroidDebug); the
         # APK output path and artifact name use it lowercase (outputs/apk/fdroid/debug/...) -
         # carrying both forms here avoids a run-time `tr`/templating step just to get casing right.
+        # NOT `flavor`/`Flavor` as two separate matrix keys - GitHub's matrix schema treats
+        # property names case-insensitively, so that pair is rejected at workflow-parse time as a
+        # duplicate key ("'Flavor' is already defined") even though plain YAML itself (and any
+        # local `yaml.safe_load`) sees them as distinct strings. Confirmed directly against a real
+        # failed run before landing this fix, not guessed.
         include:
           - flavor: fdroid
-            Flavor: Fdroid
+            taskFlavor: Fdroid
           - flavor: github
-            Flavor: Github
+            taskFlavor: Github
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { path: android }
@@ -34,7 +39,7 @@ jobs:
         with: { distribution: temurin, java-version: '17' }
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
       - uses: gradle/actions/setup-gradle@7296c772c13d12d9871528814b51fb2143c138ef # v6.4.1
-      - run: ./gradlew :app:assemble${{ matrix.Flavor }}Debug
+      - run: ./gradlew :app:assemble${{ matrix.taskFlavor }}Debug
         env: { SQUADDLE_CORE_DIR: ../core }
       # Debug build, self-signed by AGP's built-in debug keystore - installable, but not a
       # release artifact. The signed release pipeline is release.yml (tag-triggered, pinned
@@ -44,7 +49,7 @@ jobs:
           name: app-${{ matrix.flavor }}-debug
           path: android/app/build/outputs/apk/${{ matrix.flavor }}/debug/app-${{ matrix.flavor }}-debug.apk
           if-no-files-found: error
-      - run: ./gradlew :app:test${{ matrix.Flavor }}DebugUnitTest
+      - run: ./gradlew :app:test${{ matrix.taskFlavor }}DebugUnitTest
         env: { SQUADDLE_CORE_DIR: ../core }
       # android/CLAUDE.md: fdroid/github must never pull in Google Play Services/Firebase.
       - name: Verify ${{ matrix.flavor }} classpath has no GMS/Firebase
