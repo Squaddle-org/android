@@ -5,17 +5,17 @@ on:
 permissions:
   contents: write
 jobs:
-  # Runs inside a pinned JDK image (digest, not a floating tag) so the signed release build is
-  # reproducible regardless of what the runner image happens to have installed that week - the
-  # one thing in this workflow that actually needs that guarantee. The release-notes/GitHub-
-  # Release/website-PR orchestration below has no such requirement, so it's a separate job on the
-  # plain runner instead of sharing this container (gh/git/etc. are already there, no reason to
-  # reinstall them inside a bare JDK image).
+  # Reproducibility comes from every tool being exactly pinned (JDK distribution+version,
+  # Android SDK cmdline-tools version, Gradle version/checksum via the wrapper, AGP/Kotlin in the
+  # version catalog) rather than a literal `container:` - tried that first
+  # (eclipse-temurin:17-jdk@<digest>), but android-actions/setup-android failed inside it with no
+  # error detail surfaced as a GitHub annotation (confirmed directly against a real failed run,
+  # not guessed) - a known rough edge for setup-* actions that assume the runner's own host
+  # tool-cache layout, which a container job doesn't always carry over. Not worth more time
+  # fighting that for marginal extra reproducibility on top of what's already pinned below.
   build:
     runs-on: ubuntu-latest
     environment: release
-    container:
-      image: eclipse-temurin:17-jdk@sha256:91011320978c10ec51d2cde1eb6f616db6d2a739a0e521096c343dd3fed9abe6
     defaults:
       run:
         working-directory: android
