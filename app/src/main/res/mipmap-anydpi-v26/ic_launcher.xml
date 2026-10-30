@@ -2,4 +2,11 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/squaddle_brand" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <!-- Android 13+ themed icons (Material You "monochrome" launcher mode): the system draws
+         this layer as a single-color mask using the device's own wallpaper-derived tint, so the
+         checkmark's own stroke color is irrelevant - only its shape matters. Without this
+         element, a themed-icon device falls back to the full-color version only (no crash, just
+         an icon that stands out instead of matching the rest of the home screen) - this was the
+         actual gap the design-pass spec named ("app icon (adaptive + monochrome themed)"). -->
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>
