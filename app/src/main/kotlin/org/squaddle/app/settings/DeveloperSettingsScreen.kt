@@ -21,14 +21,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import org.squaddle.app.push.SyncAllRoomsWorker
 
 /** Debug-build-only (gated at the call site, [org.squaddle.app.ui.rooms.RoomsListScreen]'s gear
  * icon) override for the relay host every client-initiated action talks to. */
 @Composable
 public fun DeveloperSettingsScreen(viewModel: DeveloperSettingsViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -65,6 +72,24 @@ public fun DeveloperSettingsScreen(viewModel: DeveloperSettingsViewModel, onBack
             TextButton(onClick = viewModel::resetToDefault, modifier = Modifier.fillMaxWidth()) {
                 Text("Reset to default")
             }
+
+            Text("Push", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 24.dp))
+            Text(
+                "Runs SyncAllRoomsWorker immediately - the exact same job a real push message or " +
+                    "the 6h periodic fallback enqueues (SquaddlePushService.onMessage), without " +
+                    "needing a real UnifiedPush distributor or waiting for the real schedule. " +
+                    "Manual-testing only (MANUAL_TESTING.md).",
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp),
+            )
+            Button(
+                onClick = {
+                    val request = OneTimeWorkRequestBuilder<SyncAllRoomsWorker>()
+                        .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+                        .build()
+                    WorkManager.getInstance(context).enqueue(request)
+                },
+                modifier = Modifier.fillMaxWidth().testTag("triggerSyncNowButton"),
+            ) { Text("Trigger sync now") }
         }
     }
 }
