@@ -4,7 +4,17 @@ pluginManagement {
     repositories { google(); mavenCentral(); gradlePluginPortal() }
 }
 dependencyResolutionManagement {
-    repositories { google(); mavenCentral() }
+    repositories {
+        google()
+        mavenCentral()
+        // org.squaddle:core's own real home (core/build.gradle.kts's GitHubPages publishing
+        // target) - a plain static Maven repo on GitHub Pages, fully anonymous, no token needed
+        // to resolve it (unlike GitHub Packages, which core also publishes to but which requires
+        // a token even for public packages - the whole reason this exists). SQUADDLE_CORE_DIR
+        // (below) still wins for local dev against an unreleased core; this is what a real
+        // consumer with no sibling core checkout actually resolves from.
+        maven { url = uri("https://squaddle-org.github.io/core/") }
+    }
 }
 
 plugins {

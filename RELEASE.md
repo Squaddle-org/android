@@ -17,9 +17,11 @@
 4. **Not automated, do by hand before publishing the release**: add the short German summary
    where the draft release notes say `TODO: kurze deutsche Zusammenfassung`, then merge the
    `website` PR, then click "Publish release" on the still-draft GitHub Release.
-5. `core`'s own `release.yml` (same tag-triggered + `release`-environment pattern) publishes to
-   Maven Central the same way - a separate tag in the `core` repo, not implied by android's own
-   tag.
+5. `core`'s own `release.yml` (same tag-triggered + `release`-environment pattern) publishes
+   `org.squaddle:core` to GitHub Packages and to a GitHub Pages-hosted static Maven repo the same
+   way - a separate tag in the `core` repo, not implied by android's own tag. If this is a new
+   `core` version android should actually depend on, update the version string in
+   `app/build.gradle.kts`'s `implementation("org.squaddle:core:X.Y.Z")` line to match.
 
 ## Manual smoke test, on a real device, before publishing
 
@@ -62,12 +64,15 @@ release, on real hardware, not just the emulator these were developed against.
    - Revert `website`'s `latest.json` back afterward - this step's whole point was a throwaway
      test tag, not a real release.
 
-## Verifying core resolves from Maven Central with no token
+## Verifying core resolves with no token
 
 Confirms android's own dependency on `org.squaddle:core` doesn't secretly depend on the
 composite-build substitution (`SQUADDLE_CORE_DIR`) to resolve - a real consumer, cloning this repo
 fresh with no sibling `core` checkout and no Maven credentials configured anywhere, must be able to
-build it.
+build it. `core` publishes to a plain static Maven repo on GitHub Pages
+(`https://squaddle-org.github.io/core/`, `settings.gradle.kts`) specifically because that's
+fully anonymous - GitHub Packages (which `core` also publishes to) requires a token to resolve
+even public packages, which would defeat this requirement entirely.
 
 ```bash
 # A throwaway clone, not your working checkout - SQUADDLE_CORE_DIR must be genuinely unset, not
@@ -78,7 +83,9 @@ unset SQUADDLE_CORE_DIR
 ./gradlew :app:assembleFdroidRelease --no-build-cache
 ```
 
-A failure here (dependency not found, or a prompt for Maven credentials) means `core`'s Central
-Portal publish either hasn't landed yet or hasn't finished propagating (Central Portal's own
-"available for download" step can take 10-30 minutes after a successful publish - its own
-documented behavior, not a bug) - wait and retry before assuming something's actually broken.
+A failure here (dependency not found) most likely means one of: `core`'s `release.yml` hasn't run
+for the version `android/app/build.gradle.kts` currently depends on yet; GitHub Pages isn't
+enabled for the `core` repo (Settings -> Pages -> Source: GitHub Actions - a one-time manual
+step); or the version string in that `implementation("org.squaddle:core:X.Y.Z")` line doesn't
+match what was actually tagged/published (it's a plain hardcoded string, not auto-derived - update
+it by hand whenever `core` cuts a new version android should pick up).
