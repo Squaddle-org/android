@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 import org.squaddle.app.BuildConfig
 import org.squaddle.app.R
 import org.squaddle.app.backup.AutoBackupScheduler
+import org.squaddle.app.ui.link.LinkDeviceSection
 import org.squaddle.app.update.InstallOutcome
 import org.squaddle.app.update.SelfUpdateChecker
 import org.squaddle.app.update.UpdateCheckResult
@@ -57,7 +58,7 @@ import org.squaddle.app.update.UpdateCheckResult
 private const val BACKUP_MIME_TYPE = "application/octet-stream"
 
 @Composable
-public fun SettingsScreen(viewModel: SettingsViewModel, selfUpdateChecker: SelfUpdateChecker, onBack: () -> Unit) {
+public fun SettingsScreen(viewModel: SettingsViewModel, selfUpdateChecker: SelfUpdateChecker, onBack: () -> Unit, onLinkNewDevice: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -113,6 +114,10 @@ public fun SettingsScreen(viewModel: SettingsViewModel, selfUpdateChecker: SelfU
                     },
                     onHide = viewModel::hideSeed,
                 )
+            }
+            item { HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp)) }
+            item {
+                LinkDeviceSection(onLinkNewDevice = onLinkNewDevice)
             }
             item { HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp)) }
             item {

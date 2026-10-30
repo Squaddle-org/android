@@ -23,6 +23,8 @@ installreferrer = "2.2"
 fragment = "1.9.1"
 espresso = "3.7.0"
 roborazzi = "1.77.0"
+cameraX = "1.6.2"
+zxing = "3.5.4"
 
 [libraries]
 roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }
@@ -50,6 +52,15 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestExtJunit" }
 espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+# CameraX + ZXing - device-linking's QR-scan screen (Settings -> Link a new device). ZXing's
+# `core` artifact is a plain Apache-2.0 barcode-decoding library with no Play Services
+# dependency despite the "google" group id - confirmed safe for the GMS-free fdroid/github
+# flavors (android/CLAUDE.md's own CI check for this).
+camerax-core = { module = "androidx.camera:camera-core", version.ref = "cameraX" }
+camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraX" }
+camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraX" }
+camerax-view = { module = "androidx.camera:camera-view", version.ref = "cameraX" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

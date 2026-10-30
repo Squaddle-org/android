@@ -51,6 +51,13 @@ public sealed interface Route {
     @Serializable
     public data object DeveloperSettings : Route
 
+    /** Settings -> "Link a new device" (PROTOCOL.md §2.3, master/E role) - the camera-scan
+     * screen, its own route so the back button/predictive-back gesture behaves the same as every
+     * other screen in the app (stops the camera via the Composable's own `DisposableEffect`,
+     * same pattern CameraX-using Composables always need regardless of navigation). */
+    @Serializable
+    public data object LinkDevice : Route
+
     /** Reached from an App Link or a pasted/referred invite link. [linkUri] is
      * [org.squaddle.app.data.InviteLink.toUriString] - re-parsed on arrival the same way a
      * pasted clipboard link already is, not a new encoding. */

@@ -195,4 +195,15 @@
     <string name="voucher_redeem">Redeem</string>
     <string name="voucher_error_title">Couldn\'t redeem voucher</string>
     <string name="voucher_new_tier">This room is now tier: %1$s</string>
+
+    <!-- ui/link/DeviceLinkScanScreen.kt, ui/settings/SettingsScreen.kt's "Link a new device" -
+         PROTOCOL.md §2.3, new on both platforms, same EN/DE copy as webclient's i18n.ts. -->
+    <string name="settings_link_device">Link a new device</string>
+    <string name="settings_link_device_explainer">Scan the QR code shown on a new device to sign it in with this identity.</string>
+    <string name="link_scan_title">Scan the QR code</string>
+    <string name="link_camera_denied">Camera permission was denied.</string>
+    <string name="link_confirm_title">Confirm these codes match</string>
+    <string name="link_confirm_explainer">Compare this code with the one shown on your other device. If they don\'t match, don\'t continue - start over.</string>
+    <string name="link_invalid_qr">That QR code isn\'t a valid device-linking code.</string>
+    <string name="link_send_failed">Couldn\'t reach the relay - check your connection and try again.</string>
 </resources>

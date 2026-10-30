@@ -167,6 +167,15 @@ dependencies {
     // here overrides the stale transitive one (Gradle's default highest-version-wins).
     implementation(libs.fragment.ktx)
 
+    // Device linking (Settings -> Link a new device): CameraX for frame capture, ZXing for
+    // decoding - see gradle/libs.versions.toml's own comment on why zxing-core is GMS-free
+    // despite the group id.
+    implementation(libs.camerax.core)
+    implementation(libs.camerax.camera2)
+    implementation(libs.camerax.lifecycle)
+    implementation(libs.camerax.view)
+    implementation(libs.zxing.core)
+
     // android/CLAUDE.md: play flavor gets Play Billing (M5b, not yet added) - Install Referrer
     // (item 9, M4b) lands now since it needs no billing setup, just the flavor-specific
     // dependency; foss stays with zero Google artifacts on its classpath (CI's fossRelease check).

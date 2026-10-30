@@ -77,6 +77,8 @@ import org.squaddle.app.ui.room.RoomScreen
 import org.squaddle.app.ui.room.RoomViewModel
 import org.squaddle.app.ui.rooms.RoomsListScreen
 import org.squaddle.app.ui.rooms.RoomsListViewModel
+import org.squaddle.app.ui.link.DeviceLinkScanScreen
+import org.squaddle.app.ui.link.DeviceLinkViewModel
 import org.squaddle.app.ui.settings.SettingsScreen
 import org.squaddle.app.ui.settings.SettingsViewModel
 import org.squaddle.app.ui.theme.SquaddleTheme
@@ -394,7 +396,26 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                         }
                     },
                 )
-                SettingsScreen(viewModel = viewModel, selfUpdateChecker = container.selfUpdateChecker, onBack = { navController.popBackStack() })
+                SettingsScreen(
+                    viewModel = viewModel,
+                    selfUpdateChecker = container.selfUpdateChecker,
+                    onBack = { navController.popBackStack() },
+                    onLinkNewDevice = { navController.navigate(Route.LinkDevice) },
+                )
+            }
+            composable<Route.LinkDevice> {
+                val viewModel: DeviceLinkViewModel = viewModel(
+                    factory = viewModelFactory {
+                        initializer {
+                            DeviceLinkViewModel(
+                                crypto = container.crypto,
+                                userIdentity = container.session!!.userIdentity,
+                                appLocalStore = container.appLocalStore,
+                            )
+                        }
+                    },
+                )
+                DeviceLinkScanScreen(viewModel = viewModel, onBack = { navController.popBackStack() })
             }
             composable<Route.DeveloperSettings> {
                 val viewModel: DeveloperSettingsViewModel = viewModel(

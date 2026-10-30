@@ -7,6 +7,12 @@
          ever calling notify(), so a denial degrades to "no notifications" rather than a crash -
          the user can still grant it later via system settings. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Device linking (Settings -> Link a new device, PROTOCOL.md §2.3) - requested at runtime
+         only when that screen is actually opened, never at startup. android:required="false" on
+         the feature declaration: a device with no camera can still install and use every other
+         part of the app, it just can't scan a QR to link a new device from here. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <application
         android:name=".SquaddleApplication"
