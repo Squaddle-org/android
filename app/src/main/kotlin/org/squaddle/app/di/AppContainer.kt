@@ -16,8 +16,10 @@ import org.squaddle.app.push.AndroidRoomMuteStore
 import org.squaddle.app.push.RoomMuteStore
 import org.squaddle.app.settings.AndroidDeveloperSettingsStore
 import org.squaddle.app.settings.AndroidDisplayNameStore
+import org.squaddle.app.settings.AndroidNotificationPermissionGate
 import org.squaddle.app.settings.DeveloperSettingsStore
 import org.squaddle.app.settings.DisplayNameStore
+import org.squaddle.app.settings.NotificationPermissionGate
 import org.squaddle.app.store.AndroidAppLocalStore
 import org.squaddle.app.store.AppLocalStore
 import org.squaddle.core.crypto.Crypto
@@ -42,6 +44,7 @@ public class AppContainer(private val context: Context) {
     public val developerSettingsStore: DeveloperSettingsStore = AndroidDeveloperSettingsStore(context)
     public val roomMuteStore: RoomMuteStore = AndroidRoomMuteStore(context)
     public val displayNameStore: DisplayNameStore = AndroidDisplayNameStore(context)
+    public val notificationPermissionGate: NotificationPermissionGate = AndroidNotificationPermissionGate(context)
     public val backupManager: BackupManager by lazy { AndroidBackupManager(context, crypto) }
     public val backupPassphraseVault: BackupPassphraseVault = AndroidBackupPassphraseVault(context)
     public val autoBackupSettings: AutoBackupSettingsStore = AndroidAutoBackupSettingsStore(context)

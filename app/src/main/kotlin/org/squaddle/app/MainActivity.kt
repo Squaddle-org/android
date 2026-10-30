@@ -267,12 +267,27 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
     // POST_NOTIFICATIONS is a runtime permission only on API 33+ (below that it doesn't exist
     // and notifications just work); SyncAllRoomsWorker already checks the grant before calling
     // notify() regardless, so a denial here just means "no notifications shown," never a crash.
+    //
+    // Asked at most once, ever (NotificationPermissionGate), the first time a room actually
+    // exists - not blindly on every cold start, which would mean asking before the user has even
+    // joined/created anything to be notified about. Polls appLocalStore (same lightweight
+    // local-only posture as the outboxCount poll above) rather than needing a callback threaded
+    // through every room-creation/join/restore call site - the moment a first room appears,
+    // however it got there, this notices on its own.
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return@LaunchedEffect
+        if (container.notificationPermissionGate.hasPrompted()) return@LaunchedEffect
+        while (true) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                return@LaunchedEffect
+            }
+            if (container.appLocalStore.allKnownRooms().isNotEmpty()) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                container.notificationPermissionGate.setPrompted()
+                return@LaunchedEffect
+            }
+            delay(2000)
         }
     }
 
