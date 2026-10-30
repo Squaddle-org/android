@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -44,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.squaddle.app.BuildConfig
 import org.squaddle.app.R
+import org.squaddle.app.ui.components.StickyNoteIllustration
 import org.squaddle.core.encoding.Base32
 
 @Composable
@@ -118,10 +120,18 @@ public fun RoomsListScreen(
 @Composable
 private fun EmptyRoomsState(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.rooms_empty_title), style = MaterialTheme.typography.titleLarge)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 32.dp)) {
+            StickyNoteIllustration(Icons.Filled.Groups)
+            Text(
+                stringResource(R.string.rooms_empty_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(top = 16.dp),
+            )
             Text(
                 stringResource(R.string.rooms_empty_explainer),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.padding(top = 8.dp),
             )
         }

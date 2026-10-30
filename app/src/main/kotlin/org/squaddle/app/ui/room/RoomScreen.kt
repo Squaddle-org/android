@@ -31,8 +31,10 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsOff
@@ -79,6 +81,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.squaddle.app.R
+import org.squaddle.app.ui.components.StickyNoteIllustration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -343,9 +346,20 @@ private fun tierLabel(tier: String): String = when (tier) {
 @Composable
 private fun EmptyIdeasState(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.room_no_ideas_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.room_no_ideas_hint), modifier = Modifier.padding(top = 8.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 32.dp)) {
+            StickyNoteIllustration(Icons.Filled.Lightbulb)
+            Text(
+                stringResource(R.string.room_no_ideas_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                stringResource(R.string.room_no_ideas_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }
@@ -602,9 +616,20 @@ internal fun DiscardChangesDialog(onKeepEditing: () -> Unit, onDiscard: () -> Un
 @Composable
 private fun EmptyEventsState(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(stringResource(R.string.room_no_events_title), style = MaterialTheme.typography.titleLarge)
-            Text(stringResource(R.string.room_no_events_hint), modifier = Modifier.padding(top = 8.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 32.dp)) {
+            StickyNoteIllustration(Icons.Filled.Event)
+            Text(
+                stringResource(R.string.room_no_events_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+            Text(
+                stringResource(R.string.room_no_events_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }
