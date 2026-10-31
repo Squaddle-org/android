@@ -145,7 +145,7 @@ dependencies {
     // resolution (settings.gradle.kts's GitHubPages repository) this string must match whatever
     // core actually published (core/build.gradle.kts's own release.yml: the git tag with its `v`
     // stripped), not a floating -SNAPSHOT that was never really published anywhere resolvable.
-    implementation("org.squaddle:core:0.2.1")
+    implementation("org.squaddle:core:0.2.2")
 
     implementation(libs.core.ktx)
     implementation(libs.activity.compose)

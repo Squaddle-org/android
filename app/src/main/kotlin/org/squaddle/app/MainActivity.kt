@@ -373,10 +373,25 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
         // shared-element behavior there) keep compiling unchanged.
         SharedTransitionLayout {
         NavHost(navController = navController, startDestination = Route.RoomsList) {
-            composable<Route.RoomsList> {
+            composable<Route.RoomsList> { entry ->
                 val viewModel: RoomsListViewModel = viewModel(
                     factory = viewModelFactory { initializer { RoomsListViewModel(gateway, container.appLocalStore) } },
                 )
+                // This destination's ViewModel is scoped to [entry] and only runs its init{}-time
+                // refresh() once - navigating away (e.g. to join a room via a deep link) and back
+                // reuses the same entry/ViewModel instance, so a room joined elsewhere never
+                // showed up in this list until the whole app was restarted. Each back stack
+                // entry's own Lifecycle re-enters RESUMED every time it becomes the top of the
+                // stack again, not just on app foreground (unlike SignedInApp's own ON_RESUME
+                // observer above, which is scoped to the Activity) - exactly the signal needed to
+                // catch "known_rooms changed while this screen wasn't the one showing".
+                DisposableEffect(entry) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
+                    }
+                    entry.lifecycle.addObserver(observer)
+                    onDispose { entry.lifecycle.removeObserver(observer) }
+                }
                 RoomsListScreen(
                     viewModel = viewModel,
                     onOpenRoom = { navController.navigate(Route.Room(Base32.encode(it))) },
