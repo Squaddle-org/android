@@ -57,6 +57,19 @@ public class RealSyncGateway(
     private val displayNameStore: org.squaddle.app.settings.DisplayNameStore,
 ) : SyncGateway {
 
+    private companion object {
+        /** A room's display name was never a protocol concept (`AppLocalDb.sq`'s own doc comment) -
+         * [restoreKnownRooms]/[joinViaLink] use this as the locally-known name whenever the real
+         * one isn't available (restore has no way to recover it at all; a join only has one when
+         * the invite envelope happened to carry one). [createInvite] below checks against this
+         * same constant before baking *this* device's locally-known name into a *new* invite's
+         * envelope - without that check, a room whose real name was never actually known here
+         * would propagate this placeholder onward as if it were real, permanently, to every future
+         * joiner (found live: an invite created from a restored device showed this placeholder on
+         * the joiner's pre-join preview screen, not the room's actual name). */
+        const val UNKNOWN_ROOM_NAME_PLACEHOLDER: String = "Squaddle room"
+    }
+
     private fun syncClientForRoom(room: ByteArray): SyncClient {
         val relayHost = appLocalStore.knownRoom(room)?.relay_host
             ?: error("room not known locally: ${room.toKey()}")
@@ -191,7 +204,7 @@ public class RealSyncGateway(
         }
         val now = System.currentTimeMillis()
         for (ref in outcome.rooms) {
-            appLocalStore.insertKnownRoom(ref.roomId, "Squaddle room", ref.relayHost, now, now)
+            appLocalStore.insertKnownRoom(ref.roomId, UNKNOWN_ROOM_NAME_PLACEHOLDER, ref.relayHost, now, now)
             pull(ref.roomId)
             applyStoredDisplayName(ref.roomId)
         }
@@ -202,6 +215,16 @@ public class RealSyncGateway(
         val outcome = syncClientForRoom(room).pull(room)
         if (outcome == SyncOutcome.Ok) appLocalStore.touchRoomActivity(room, System.currentTimeMillis())
         outcome
+    }
+
+    override suspend fun flushOutbox(room: ByteArray): SyncOutcome = catchingSyncOutcome {
+        // WaitingForRotation isn't a failure (see PushOutcome's own doc comment) - the next pull
+        // will observe the rotation clear and a later flushOutbox call will retry naturally, same
+        // as any other still-queued entry.
+        when (val outcome = syncClientForRoom(room).push(room)) {
+            PushOutcome.Ok, PushOutcome.WaitingForRotation -> SyncOutcome.Ok
+            is PushOutcome.Error -> SyncOutcome.Error(outcome.status, outcome.code, outcome.message)
+        }
     }
 
     override suspend fun syncedCursor(room: ByteArray): Pair<Long, Long>? {
@@ -420,7 +443,12 @@ public class RealSyncGateway(
         val relayHost = appLocalStore.knownRoom(room)?.relay_host
             ?: throw IllegalStateException("room not known locally")
         val sync = session.syncClientFor(relayHost)
-        val roomName = appLocalStore.knownRoom(room)?.display_name
+        // Not the placeholder itself: a room whose real name was never actually known on this
+        // device (restored seed-only, or joined via an invite with no name of its own) must not
+        // pass that placeholder onward into a *new* invite as though it were real - the envelope's
+        // roomName field is supposed to mean "nothing known", conveyed by leaving the field out
+        // entirely (null), not by filling it with a string that looks like a real room name.
+        val roomName = appLocalStore.knownRoom(room)?.display_name?.takeUnless { it == UNKNOWN_ROOM_NAME_PLACEHOLDER }
         val inviteId = session.crypto.randomBytes(16)
         val outcome = sync.createInvite(room, inviteId, requiresApproval, expiresAt, maxUses, roomName)
         if (outcome is PushOutcome.Error) throw RelayErrorException(outcome.code, outcome.message)
@@ -491,7 +519,7 @@ public class RealSyncGateway(
             }
         }
         if (outcome == PushOutcome.Ok) {
-            val roomName = peekInviteRoomName(link) ?: "Squaddle room"
+            val roomName = peekInviteRoomName(link) ?: UNKNOWN_ROOM_NAME_PLACEHOLDER
             val now = System.currentTimeMillis()
             appLocalStore.insertKnownRoom(link.roomId, roomName, link.relayHost, now, now)
             // A no-approval join can set its profile right away; an approval-required one has no
