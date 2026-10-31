@@ -14,6 +14,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -575,6 +579,15 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                             onClick = { openNtfyInstallPage(context) },
                             modifier = Modifier.testTag("installNtfyButton"),
                         ) { Text(stringResource(R.string.push_install_ntfy_action)) }
+                        // In-session only - re-checked (and shown again if still true) on the next
+                        // cold start, same as the hint's own LaunchedEffect above; this is "not
+                        // now", not "never ask again".
+                        IconButton(
+                            onClick = { showInstallNtfyHint = false },
+                            modifier = Modifier.testTag("dismissNtfyHintButton"),
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_dismiss))
+                        }
                     }
                 }
             }
