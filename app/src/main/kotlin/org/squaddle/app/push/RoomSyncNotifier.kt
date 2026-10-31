@@ -74,6 +74,12 @@ public class RoomSyncNotifier(
     private suspend fun syncOneRoom(room: Known_rooms) {
         val roomId = room.room_id
         if (gateway.pull(roomId) !is SyncOutcome.Ok) return
+        // Every content mutation already attempts one opportunistic push right after enqueueing,
+        // but nothing ever retries it if that one attempt fails (see [SyncGateway.flushOutbox]'s
+        // own doc comment) - this periodic pass is the only place that does. Best-effort, same as
+        // everything else in this method: a failure here shouldn't stop this room's own
+        // notification diffing below, and will simply be retried on the next periodic run.
+        gateway.flushOutbox(roomId)
 
         // Warms the in-memory epoch-key cache opsSince/materialize both rely on.
         val materialization = gateway.materialize(roomId)

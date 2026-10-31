@@ -26,6 +26,8 @@ public class FakeSyncGateway : SyncGateway {
     public var redeemVoucherResult: Result<org.squaddle.core.sync.RoomLimits> = getLimitsResult
     public var outboxCountResult: Int = 0
     public var pullOutcome: SyncOutcome = SyncOutcome.Ok
+    public var flushOutboxOutcome: SyncOutcome = SyncOutcome.Ok
+    public var flushOutboxCalls: Int = 0
     public var materialization: RoomMaterialization = RoomMaterialization(RoomState(), emptyMap())
     public var history: MembershipHistory = MembershipHistory.build(emptyList(), org.squaddle.core.membership.MembershipStateImpl.empty(FakeCrypto))
     public var myRoleResult: Role? = Role.OWNER
@@ -70,6 +72,11 @@ public class FakeSyncGateway : SyncGateway {
     }
 
     override suspend fun pull(room: ByteArray): SyncOutcome = pullOutcome
+
+    override suspend fun flushOutbox(room: ByteArray): SyncOutcome {
+        flushOutboxCalls++
+        return flushOutboxOutcome
+    }
 
     override suspend fun syncedCursor(room: ByteArray): Pair<Long, Long>? = syncedCursorResult
 

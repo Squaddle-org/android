@@ -60,6 +60,17 @@ public interface SyncGateway {
 
     public suspend fun pull(room: ByteArray): SyncOutcome
 
+    /** Pushes every still-outstanding outbox entry for [room] - a no-op returning success
+     * immediately if nothing's queued. Every content-plane mutation already attempts one push
+     * right after enqueueing (best-effort; see e.g. `RealSyncGateway.enqueueAndPush`), but that's
+     * a single opportunistic attempt with no automatic retry of its own if it fails (a transient
+     * network blip right after room creation, say) - nothing periodic ever revisits a stranded
+     * outbox entry otherwise. [RoomSyncNotifier]'s own periodic sync pass calls this alongside
+     * [pull] for exactly that reason (found live: a room owner's own `profile.set` stuck in his
+     * outbox forever, with every other member seeing his key instead of his name, because the one
+     * push attempt right after room creation happened to fail and nothing ever tried again). */
+    public suspend fun flushOutbox(room: ByteArray): SyncOutcome
+
     /** `(lastLogIndex, lastOpsCursor)` as core's own `LocalStore` currently has them synced to,
      * or `null` if nothing has ever been pulled for [room] yet - what the Rooms list compares
      * against `AppLocalDb`'s `read_cursors` to compute "unread" (a purely local UI concept, not

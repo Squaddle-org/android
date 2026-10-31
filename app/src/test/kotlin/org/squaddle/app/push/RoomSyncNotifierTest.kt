@@ -87,6 +87,31 @@ class RoomSyncNotifierTest {
     }
 
     @Test
+    fun syncAllAndNotifyFlushesTheOutboxForEveryKnownRoom() = runTest {
+        // A single opportunistic push right after enqueueing (e.g. the room owner's own
+        // profile.set right after createRoom) has no automatic retry of its own if it fails -
+        // this periodic pass is the only thing that ever revisits a stranded outbox entry.
+        seedRoom()
+
+        notifier.syncAllAndNotify()
+
+        assertEquals(1, gateway.flushOutboxCalls)
+    }
+
+    @Test
+    fun aFailedOutboxFlushStillLetsNotificationDiffingRunForThatRoom() = runTest {
+        // Best-effort, same posture as every other per-room step in syncOneRoom - one room's
+        // flush failing must not stop its own (or any other room's) notification diffing.
+        seedRoom()
+        gateway.flushOutboxOutcome = SyncOutcome.Error(0, "network_error", "boom")
+        gateway.opsSinceResult = listOf(AuthoredOp(otherUser, OpBody.IdeaCreate(ByteArray(16), "New idea", null, emptyList())))
+
+        notifier.syncAllAndNotify()
+
+        assertEquals(1, posted.size)
+    }
+
+    @Test
     fun newIdeaFromSomeoneElsePostsOneIdeaNotification() = runTest {
         seedRoom()
         gateway.opsSinceResult = listOf(AuthoredOp(otherUser, OpBody.IdeaCreate(ByteArray(16), "New idea", null, emptyList())))
