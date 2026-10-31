@@ -20,8 +20,18 @@ jobs:
       run:
         working-directory: android
     steps:
+      # fetch-depth: 0 (full history) - app/build.gradle.kts's versionCode is
+      # gitCommitCountOrNull() (`git rev-list --count HEAD`), which a shallow (default
+      # fetch-depth: 1) checkout can only ever see as 1 commit deep - every CI-built release so
+      # far shipped with versionCode=1 baked into the actual APK instead of the real
+      # monotonically-increasing value, which Android's package installer treats as "not a valid
+      # update" against anything already installed at that version. website/public/android/
+      # latest.json's own versionCode was always computed correctly (git rev-list --count HEAD
+      # run locally against a real full clone, never against this shallow CI checkout), so the
+      # self-update checker's "is a newer version available" check looked right while the actual
+      # downloaded APK's own self-update install step would have silently failed every time.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { path: android }
+        with: { path: android, fetch-depth: 0 }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { repository: squaddle-org/core, path: core }
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
