@@ -136,6 +136,11 @@ public class RoomViewModel(
 
     private suspend fun doRefresh() {
         gateway.pull(room)
+        // Same reasoning as RoomSyncNotifier's own copy of this call: a single opportunistic push
+        // right after enqueueing (e.g. this device's own profile.set right after joining) has no
+        // automatic retry if it fails, and this screen is the fastest path to catch that for
+        // *this* room specifically - not just whenever the periodic background worker next runs.
+        gateway.flushOutbox(room)
         val materialization = gateway.materialize(room)
         val myRole = gateway.myRole(room)
         val isAdminOrOwner = myRole == Role.ADMIN || myRole == Role.OWNER

@@ -49,6 +49,11 @@ public class RoomsListViewModel(
             val known = appLocalStore.allKnownRooms()
             val summaries = known.map { room ->
                 gateway.pull(room.room_id)
+                // Same reasoning as RoomSyncNotifier's/RoomViewModel's own copy of this call -
+                // the fastest path to catch a stranded outbox entry for a room this device
+                // hasn't actively opened in a while, rather than waiting for the next periodic
+                // background sync.
+                gateway.flushOutbox(room.room_id)
                 room.toSummary()
             }
             _uiState.value = RoomsListUiState(rooms = summaries, isRefreshing = false)
