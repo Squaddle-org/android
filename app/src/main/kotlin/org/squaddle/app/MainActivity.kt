@@ -447,15 +447,19 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
             composable<Route.Room> { backStackEntry ->
                 val route: Route.Room = backStackEntry.toRoute()
                 val roomId = remember(route.roomIdB32) { Base32.decode(route.roomIdB32) ?: ByteArray(0) }
-                val roomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: stringResource(R.string.default_room_name)
+                val cachedRoomName = container.appLocalStore.knownRoom(roomId)?.display_name ?: stringResource(R.string.default_room_name)
                 val viewModel: RoomViewModel = viewModel(
                     factory = viewModelFactory {
-                        initializer { RoomViewModel(roomId, container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
+                        initializer {
+                            RoomViewModel(
+                                roomId, container.session!!.userIdentity.userKey, gateway, container.roomMuteStore,
+                                container.appLocalStore, cachedRoomName,
+                            )
+                        }
                     },
                 )
                 RoomScreen(
                     viewModel = viewModel,
-                    roomName = roomName,
                     onBack = { navController.popBackStack() },
                     onOpenMembers = { navController.navigate(Route.Members(route.roomIdB32)) },
                     onOpenInvite = { navController.navigate(Route.Invite(route.roomIdB32)) },
@@ -479,7 +483,13 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                 val viewModel: RoomViewModel = viewModel(
                     viewModelStoreOwner = roomEntry,
                     factory = viewModelFactory {
-                        initializer { RoomViewModel(Base32.decode(route.roomIdB32) ?: ByteArray(0), container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
+                        initializer {
+                            val roomIdBytes = Base32.decode(route.roomIdB32) ?: ByteArray(0)
+                            RoomViewModel(
+                                roomIdBytes, container.session!!.userIdentity.userKey, gateway, container.roomMuteStore,
+                                container.appLocalStore, container.appLocalStore.knownRoom(roomIdBytes)?.display_name ?: "",
+                            )
+                        }
                     },
                 )
                 IdeaDetailScreen(
@@ -498,7 +508,13 @@ private fun SignedInApp(container: AppContainer, pendingDeepLink: MutableState<S
                 val viewModel: RoomViewModel = viewModel(
                     viewModelStoreOwner = roomEntry,
                     factory = viewModelFactory {
-                        initializer { RoomViewModel(Base32.decode(route.roomIdB32) ?: ByteArray(0), container.session!!.userIdentity.userKey, gateway, container.roomMuteStore) }
+                        initializer {
+                            val roomIdBytes = Base32.decode(route.roomIdB32) ?: ByteArray(0)
+                            RoomViewModel(
+                                roomIdBytes, container.session!!.userIdentity.userKey, gateway, container.roomMuteStore,
+                                container.appLocalStore, container.appLocalStore.knownRoom(roomIdBytes)?.display_name ?: "",
+                            )
+                        }
                     },
                 )
                 EventDetailScreen(viewModel = viewModel, eventId = eventId, onBack = { navController.popBackStack() })

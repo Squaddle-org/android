@@ -20,6 +20,7 @@ import org.squaddle.core.ops.Idea
 import org.squaddle.core.ops.LwwStamp
 import org.squaddle.core.ops.MembershipHistory
 import org.squaddle.core.ops.OpBody
+import org.squaddle.core.ops.RoomName
 import org.squaddle.core.ops.RoomState
 import org.squaddle.core.sync.SyncOutcome
 import kotlin.test.Test
@@ -96,6 +97,20 @@ class RoomSyncNotifierTest {
         notifier.syncAllAndNotify()
 
         assertEquals(1, gateway.flushOutboxCalls)
+    }
+
+    @Test
+    fun aNewSyncedRoomNameSelfHealsTheLocalKnownRoomsCache() = runTest {
+        // PROTOCOL.md §4.2/ADR-0014 - once a real synced name exists, it's authoritative and
+        // should overwrite the local known_rooms cache, which is what makes an already-wrong
+        // cached name (the placeholder-propagation bug this op was added to fix) correct itself
+        // the next time anyone syncs, once the room's owner has set a real name.
+        seedRoom() // seeds known_rooms.display_name = "Camping Trip"
+        gateway.materialization = RoomMaterialization(RoomState(roomName = RoomName("Real synced name", stamp())), emptyMap())
+
+        notifier.syncAllAndNotify()
+
+        assertEquals("Real synced name", store.knownRoom(room)?.display_name)
     }
 
     @Test

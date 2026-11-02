@@ -74,11 +74,11 @@ class BackNavigationTest {
             materialization = RoomMaterialization(RoomState(ideas = mapOf("01" to ideaA)), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore())
+        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore(), org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         var openedIdeaId: ByteArray? = null
 
         composeRule.setContent {
-            RoomScreen(viewModel = viewModel, roomName = "Test Room", onBack = {}, onOpenIdea = { openedIdeaId = it })
+            RoomScreen(viewModel = viewModel, onBack = {}, onOpenIdea = { openedIdeaId = it })
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("Camping trip").performClick()
@@ -104,7 +104,7 @@ class BackNavigationTest {
             materialization = RoomMaterialization(RoomState(ideas = mapOf("01" to ideaA)), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore())
+        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore(), org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         var onBackCalls = 0
 
         composeRule.setContent {
@@ -129,7 +129,7 @@ class BackNavigationTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore())
+        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore(), org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         var onBackCalls = 0
         val missingIdeaId = ByteArray(16) { 9 }
 
@@ -172,10 +172,10 @@ class BackNavigationTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore())
+        val viewModel = RoomViewModel(room, myKey, gateway, FakeRoomMuteStore(), org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
 
         composeRule.setContent {
-            RoomScreen(viewModel = viewModel, roomName = "Test Room", onBack = {})
+            RoomScreen(viewModel = viewModel, onBack = {})
         }
         composeRule.waitForIdle()
         composeRule.onNodeWithContentDescription("New idea").performClick() // the FAB

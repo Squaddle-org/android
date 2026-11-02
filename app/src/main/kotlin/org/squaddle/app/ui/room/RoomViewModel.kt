@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.squaddle.app.data.SyncGateway
 import org.squaddle.app.push.RoomMuteStore
+import org.squaddle.app.store.AppLocalStore
 import org.squaddle.core.membership.Role
 
 private fun ByteArray.toKey(): String = joinToString("") { "%02x".format(it) }
@@ -73,6 +74,13 @@ public data class RoomUiState(
      * both apply their change to [ideas]/[comments] optimistically before the network call
      * resolves, then restore the pre-change snapshot and set this if the call fails. */
     public val actionError: String? = null,
+    /** The room's synced name (PROTOCOL.md §4.2/ADR-0014) once materialized, else whatever name
+     * the caller passed in at construction (the local `known_rooms` cache - see [RoomViewModel]'s
+     * own constructor doc, for a room with no `room.set` in its history yet). */
+    public val roomName: String = "",
+    /** Gates the rename UI - same `isAdminOrOwner` computation [doRefresh] already does for
+     * [canCreateEvent]/idea-edit permissions. */
+    public val canRenameRoom: Boolean = false,
 )
 
 /**
@@ -88,9 +96,13 @@ public class RoomViewModel(
     private val myUserKey: ByteArray,
     private val gateway: SyncGateway,
     private val muteStore: RoomMuteStore,
+    private val appLocalStore: AppLocalStore,
+    /** The local `known_rooms` cache's own name, shown until the first [doRefresh] either
+     * confirms it (a room with no synced name yet) or replaces it with the real synced one. */
+    cachedRoomName: String,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(RoomUiState(isMuted = muteStore.isMuted(room)))
+    private val _uiState = MutableStateFlow(RoomUiState(isMuted = muteStore.isMuted(room), roomName = cachedRoomName))
     public val uiState: StateFlow<RoomUiState> = _uiState.asStateFlow()
 
     private var liveUpdatesJob: Job? = null
@@ -159,9 +171,19 @@ public class RoomViewModel(
             .map { event -> eventSummary(event, materialization.state.rsvps, myKeyHex, isAdminOrOwner) }
             .sortedBy { it.start }
 
+        // Self-healing cache, same reasoning/pattern as RoomSyncNotifier's own copy of this -
+        // doing it here too means a room actively being viewed corrects itself immediately
+        // rather than waiting for the next periodic background sync.
+        val syncedName = materialization.state.roomName?.name
+        val known = appLocalStore.knownRoom(room)
+        if (syncedName != null && known != null && syncedName != known.display_name) {
+            appLocalStore.insertKnownRoom(room, syncedName, known.relay_host, known.joined_at, known.last_activity_at)
+        }
+
         _uiState.value = _uiState.value.copy(
             isLoading = false, ideas = ideas, comments = comments,
             events = events, canCreateEvent = canCreateEvent,
+            roomName = syncedName ?: _uiState.value.roomName, canRenameRoom = isAdminOrOwner,
         )
 
         // Best-effort, fetched after the rest of the screen already has what it needs -
@@ -279,6 +301,20 @@ public class RoomViewModel(
 
     public fun dismissActionError() {
         _uiState.value = _uiState.value.copy(actionError = null)
+    }
+
+    /** PROTOCOL.md §4.2/ADR-0014: admin or owner only - [RoomUiState.canRenameRoom] already
+     * gates whether the UI even offers this, same posture as every other role-gated action here;
+     * this itself doesn't re-check role, same as [gateway]'s own `setRoomName` doc comment. */
+    public fun renameRoom(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            if (gateway.setRoomName(room, name)) {
+                refresh()
+            } else {
+                _uiState.value = _uiState.value.copy(actionError = "Couldn't rename the room - please try again.")
+            }
+        }
     }
 
     public fun deleteComment(commentId: ByteArray) {

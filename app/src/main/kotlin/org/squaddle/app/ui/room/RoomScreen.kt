@@ -96,7 +96,6 @@ import org.squaddle.core.encoding.Base32
 @Composable
 public fun RoomScreen(
     viewModel: RoomViewModel,
-    roomName: String,
     onBack: () -> Unit,
     onOpenMembers: () -> Unit = {},
     onOpenInvite: () -> Unit = {},
@@ -111,13 +110,14 @@ public fun RoomScreen(
     val state by viewModel.uiState.collectAsState()
     var showCreateIdeaDialog by remember { mutableStateOf(false) }
     var showCreateEventDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text(roomName)
+                        Text(state.roomName)
                         state.tier?.let { tier ->
                             Text(
                                 tierLabel(tier),
@@ -131,6 +131,11 @@ public fun RoomScreen(
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back)) }
                 },
                 actions = {
+                    if (state.canRenameRoom) {
+                        IconButton(onClick = { showRenameDialog = true }, modifier = Modifier.testTag("renameRoomButton")) {
+                            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.room_rename_action))
+                        }
+                    }
                     IconButton(onClick = viewModel::toggleMute) {
                         if (state.isMuted) {
                             Icon(Icons.Filled.NotificationsOff, contentDescription = stringResource(R.string.room_unmute))
@@ -237,6 +242,17 @@ public fun RoomScreen(
         )
     }
 
+    if (showRenameDialog) {
+        RenameRoomDialog(
+            initialName = state.roomName,
+            onDismiss = { showRenameDialog = false },
+            onRename = { name ->
+                viewModel.renameRoom(name)
+                showRenameDialog = false
+            },
+        )
+    }
+
     // Rollback error from an optimistic vote/comment that failed to push (RoomViewModel.toggleVote/
     // addComment) - this message is ViewModel-authored, not a Composable string, so it's not run
     // through stringResource (see MANUAL_TESTING.md item 10's own documented scope boundary).
@@ -248,6 +264,31 @@ public fun RoomScreen(
             confirmButton = { TextButton(onClick = viewModel::dismissActionError) { Text(stringResource(R.string.action_ok)) } },
         )
     }
+}
+
+/** Admin/owner only (`state.canRenameRoom` gates whether [RoomScreen] even shows the button that
+ * opens this) - same single-text-field shape as `RoomsListScreen`'s own `CreateRoomDialog`. */
+@Composable
+private fun RenameRoomDialog(initialName: String, onDismiss: () -> Unit, onRename: (String) -> Unit) {
+    var name by remember { mutableStateOf(initialName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.room_rename_title)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.rooms_name_label)) },
+                modifier = Modifier.fillMaxWidth().testTag("renameRoomNameField"),
+            )
+        },
+        confirmButton = {
+            Button(onClick = { onRename(name) }, enabled = name.isNotBlank()) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        },
+    )
 }
 
 /**

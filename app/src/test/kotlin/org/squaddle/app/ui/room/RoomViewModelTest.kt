@@ -19,6 +19,7 @@ import org.squaddle.core.ops.Event
 import org.squaddle.core.ops.Idea
 import org.squaddle.core.ops.LwwStamp
 import org.squaddle.core.ops.MembershipHistory
+import org.squaddle.core.ops.RoomName
 import org.squaddle.core.ops.RoomState
 import org.squaddle.core.ops.Rsvp
 import org.squaddle.core.ops.Vote
@@ -83,7 +84,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, lamports)
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         val titles = vm.uiState.value.ideas.map { it.title }
@@ -99,7 +100,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         assertEquals(listOf("Live"), vm.uiState.value.ideas.map { it.title })
@@ -114,7 +115,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         val ideas = vm.uiState.value.ideas.associateBy { it.title }
@@ -130,7 +131,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.ADMIN
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.ideas.single().canEditOrDelete)
@@ -147,7 +148,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         assertEquals(1, vm.uiState.value.ideas.single().myVote)
 
@@ -174,7 +175,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.selectIdea(targetIdea.id)
@@ -189,7 +190,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.createIdea("New idea", "a description")
@@ -204,7 +205,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.createIdea("   ", null)
@@ -220,7 +221,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
         }
         val localMuteStore = FakeRoomMuteStore()
-        val vm = RoomViewModel(room, myKey, gateway, localMuteStore)
+        val vm = RoomViewModel(room, myKey, gateway, localMuteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         assertFalse(vm.uiState.value.isMuted)
 
@@ -248,7 +249,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(state, emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         val events = vm.uiState.value.events
@@ -268,7 +269,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.ADMIN
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.canCreateEvent)
@@ -286,7 +287,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             history = MembershipHistory.build(emptyList(), MembershipStateImpl.empty(FakeCrypto))
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.canCreateEvent)
@@ -298,7 +299,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.createEvent(ideaId = null, title = "   ", start = 1L, end = null, tz = "UTC", location = null, allDay = false)
@@ -314,7 +315,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.createEvent(ideaId = null, title = "Camping weekend", start = 1_700_000_000L, end = null, tz = "UTC", location = "Lake", allDay = true)
@@ -332,7 +333,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.OWNER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.cancelEvent(eventId)
@@ -347,7 +348,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         assertEquals(RoomTab.IDEAS, vm.uiState.value.selectedTab)
 
@@ -363,7 +364,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
         }
         val localMuteStore = FakeRoomMuteStore().apply { setMuted(room, true) }
-        val vm = RoomViewModel(room, myKey, gateway, localMuteStore)
+        val vm = RoomViewModel(room, myKey, gateway, localMuteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         assertTrue(vm.uiState.value.isMuted)
@@ -376,7 +377,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             getLimitsResult = Result.success(org.squaddle.core.sync.RoomLimits("boosted", 100, 50, null, 1_073_741_824L, 25, null))
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         assertEquals("boosted", vm.uiState.value.tier)
@@ -389,7 +390,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             getLimitsResult = Result.failure(RuntimeException("relay unreachable"))
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         assertEquals(null, vm.uiState.value.tier)
@@ -402,7 +403,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         assertFalse(vm.uiState.value.isRefreshing)
 
@@ -418,7 +419,7 @@ class RoomViewModelTest {
             materialization = RoomMaterialization(RoomState(), emptyMap())
             myRoleResult = Role.MEMBER
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.refresh()
@@ -436,7 +437,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             opOutcome = true
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         assertEquals(0, vm.uiState.value.ideas.single().myVote)
 
@@ -458,7 +459,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             opOutcome = false
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
 
         vm.toggleVote(ideaA.id, 1)
@@ -479,7 +480,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             opOutcome = true
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         vm.selectIdea(ideaA.id)
         advanceUntilIdle()
@@ -502,7 +503,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             opOutcome = false
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         vm.selectIdea(ideaA.id)
         advanceUntilIdle()
@@ -523,7 +524,7 @@ class RoomViewModelTest {
             myRoleResult = Role.MEMBER
             opOutcome = false
         }
-        val vm = RoomViewModel(room, myKey, gateway, muteStore)
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
         advanceUntilIdle()
         vm.toggleVote(ideaA.id, 1)
         advanceUntilIdle()
@@ -532,5 +533,96 @@ class RoomViewModelTest {
         vm.dismissActionError()
 
         assertEquals(null, vm.uiState.value.actionError)
+    }
+
+    @Test
+    fun roomNameReflectsTheMaterializedSyncedNameWhenPresent() = runTest(testDispatcher) {
+        val state = RoomState(roomName = RoomName("Camping crew", stamp(1)))
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(state, emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Cached placeholder")
+        advanceUntilIdle()
+
+        assertEquals("Camping crew", vm.uiState.value.roomName)
+    }
+
+    @Test
+    fun roomNameFallsBackToTheCachedNameWhenNoSyncedNameExistsYet() = runTest(testDispatcher) {
+        // A room created before room.set existed - no synced name in its materialized state.
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Cached placeholder")
+        advanceUntilIdle()
+
+        assertEquals("Cached placeholder", vm.uiState.value.roomName)
+    }
+
+    @Test
+    fun canRenameRoomIsTrueForAdminAndOwnerFalseForMember() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.canRenameRoom)
+
+        gateway.myRoleResult = Role.ADMIN
+        vm.refresh()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.canRenameRoom)
+
+        gateway.myRoleResult = Role.OWNER
+        vm.refresh()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.canRenameRoom)
+    }
+
+    @Test
+    fun renameRoomCallsSetRoomNameAndRefreshes() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.OWNER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
+        advanceUntilIdle()
+
+        vm.renameRoom("New name")
+        advanceUntilIdle()
+
+        assertEquals(listOf("New name"), gateway.roomNameSets)
+    }
+
+    @Test
+    fun renameRoomIgnoresABlankName() = runTest(testDispatcher) {
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(), emptyMap())
+            myRoleResult = Role.OWNER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, org.squaddle.app.store.FakeAppLocalStore(), "Test Room")
+        advanceUntilIdle()
+
+        vm.renameRoom("   ")
+        advanceUntilIdle()
+
+        assertTrue(gateway.roomNameSets.isEmpty())
+    }
+
+    @Test
+    fun aNewSyncedNameSelfHealsTheLocalKnownRoomsCache() = runTest(testDispatcher) {
+        val localStore = org.squaddle.app.store.FakeAppLocalStore()
+        localStore.insertKnownRoom(room, "Squaddle room", "relay.squaddle.org", 1L, 1L)
+        val gateway = FakeSyncGateway().apply {
+            materialization = RoomMaterialization(RoomState(roomName = RoomName("Real name", stamp(1))), emptyMap())
+            myRoleResult = Role.MEMBER
+        }
+        val vm = RoomViewModel(room, myKey, gateway, muteStore, localStore, "Squaddle room")
+        advanceUntilIdle()
+
+        assertEquals("Real name", localStore.knownRoom(room)?.display_name)
     }
 }

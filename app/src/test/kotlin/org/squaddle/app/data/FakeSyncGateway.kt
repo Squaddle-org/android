@@ -107,6 +107,13 @@ public class FakeSyncGateway : SyncGateway {
         return opOutcome
     }
 
+    public val roomNameSets: MutableList<String> = mutableListOf()
+
+    override suspend fun setRoomName(room: ByteArray, name: String): Boolean {
+        roomNameSets += name
+        return opOutcome
+    }
+
     override suspend fun createIdea(room: ByteArray, title: String, desc: String?): Boolean {
         createdIdeas += title to desc
         return opOutcome

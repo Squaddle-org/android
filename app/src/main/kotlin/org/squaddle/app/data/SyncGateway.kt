@@ -111,6 +111,15 @@ public interface SyncGateway {
      * right after success, using whatever name the user chose during onboarding. */
     public suspend fun setProfile(room: ByteArray, displayName: String, emoji: String?): Boolean
 
+    /** `RoomSet` is "admin or owner" (PROTOCOL.md §4.2/ADR-0014) - unlike [setProfile], no "own"
+     * concept at all, so a plain member's call here would be durably enqueued+pushed but silently
+     * ignored by every other client's fold. Callers must gate the UI action itself on role (see
+     * [RoomMaterialization]'s own `state`, or [materialize]'s `myRole`-equivalent in the caller),
+     * same as every other admin-only action already does - this method doesn't check it for you.
+     * [RealSyncGateway.createRoom] calls this automatically right after success, mirroring
+     * [setProfile]'s own best-effort-right-after-creation pattern. */
+    public suspend fun setRoomName(room: ByteArray, name: String): Boolean
+
     public suspend fun createIdea(room: ByteArray, title: String, desc: String?): Boolean
     public suspend fun editIdea(room: ByteArray, id: ByteArray, field: String, value: Any?): Boolean
     public suspend fun deleteIdea(room: ByteArray, id: ByteArray): Boolean

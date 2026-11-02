@@ -84,6 +84,17 @@ public class RoomSyncNotifier(
         // Warms the in-memory epoch-key cache opsSince/materialize both rely on.
         val materialization = gateway.materialize(roomId)
 
+        // Self-healing cache: known_rooms.display_name is local bookkeeping for instant paint
+        // before a room's materialized state is available - once a real synced name exists
+        // (PROTOCOL.md §4.2/ADR-0014), it's authoritative and should overwrite the cache. This is
+        // what makes an already-wrong cached name (e.g. the placeholder-propagation bug this op
+        // was added to fix) correct itself the next time anyone syncs, once the room's owner has
+        // set a real name - no user action needed beyond that one room.set reaching this device.
+        val syncedName = materialization.state.roomName?.name
+        if (syncedName != null && syncedName != room.display_name) {
+            appLocalStore.insertKnownRoom(roomId, syncedName, room.relay_host, room.joined_at, room.last_activity_at)
+        }
+
         val notifiedCursor = appLocalStore.notifiedCursorFor(roomId)
         val sinceOpsCursor = notifiedCursor?.last_notified_ops_cursor ?: 0L
         val sinceLogIndex = notifiedCursor?.last_notified_log_index ?: -1L

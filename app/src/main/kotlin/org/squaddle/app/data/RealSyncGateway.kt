@@ -171,6 +171,17 @@ public class RealSyncGateway(
         val now = System.currentTimeMillis()
         appLocalStore.insertKnownRoom(room, roomName, defaultRelayHost, now, now)
         applyStoredDisplayName(room)
+        // Best-effort, same posture/reasoning as applyStoredDisplayName's own doc comment - gives
+        // the room a real synced name (PROTOCOL.md §4.2/ADR-0014) from the moment it's created,
+        // instead of the name only ever existing as this device's local known_rooms cache.
+        try {
+            setRoomName(room, roomName)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Best-effort - a missing synced name just means other clients keep falling back to
+            // their own local placeholder until this device's outbox successfully flushes it.
+        }
         room
     }
 
@@ -443,12 +454,12 @@ public class RealSyncGateway(
         val relayHost = appLocalStore.knownRoom(room)?.relay_host
             ?: throw IllegalStateException("room not known locally")
         val sync = session.syncClientFor(relayHost)
-        // Not the placeholder itself: a room whose real name was never actually known on this
-        // device (restored seed-only, or joined via an invite with no name of its own) must not
-        // pass that placeholder onward into a *new* invite as though it were real - the envelope's
-        // roomName field is supposed to mean "nothing known", conveyed by leaving the field out
-        // entirely (null), not by filling it with a string that looks like a real room name.
-        val roomName = appLocalStore.knownRoom(room)?.display_name?.takeUnless { it == UNKNOWN_ROOM_NAME_PLACEHOLDER }
+        // The materialized, synced name (PROTOCOL.md §4.2/ADR-0014) is authoritative whenever it
+        // exists - prefer it over the local cache. Falling back to the cache (with its placeholder
+        // guard - see UNKNOWN_ROOM_NAME_PLACEHOLDER's own doc comment) only covers a room created
+        // before room.set existed, which has no synced name yet.
+        val roomName = materialize(room).state.roomName?.name
+            ?: appLocalStore.knownRoom(room)?.display_name?.takeUnless { it == UNKNOWN_ROOM_NAME_PLACEHOLDER }
         val inviteId = session.crypto.randomBytes(16)
         val outcome = sync.createInvite(room, inviteId, requiresApproval, expiresAt, maxUses, roomName)
         if (outcome is PushOutcome.Error) throw RelayErrorException(outcome.code, outcome.message)
@@ -532,6 +543,9 @@ public class RealSyncGateway(
 
     override suspend fun setProfile(room: ByteArray, displayName: String, emoji: String?): Boolean =
         enqueueAndPush(room, OpBody.ProfileSet(displayName, emoji))
+
+    override suspend fun setRoomName(room: ByteArray, name: String): Boolean =
+        enqueueAndPush(room, OpBody.RoomSet(name))
 
     override suspend fun outboxCount(): Int =
         appLocalStore.allKnownRooms().sumOf { session.store.outboxFor(it.room_id).size }

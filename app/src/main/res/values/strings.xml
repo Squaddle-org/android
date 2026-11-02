@@ -127,6 +127,8 @@
     <string name="room_new_idea_title">New idea</string>
     <string name="room_new_event">New event</string>
     <string name="room_new_event_title">New event</string>
+    <string name="room_rename_action">Rename room</string>
+    <string name="room_rename_title">Rename room</string>
     <string name="room_tab_ideas">Ideas</string>
     <string name="room_tab_events">Events</string>
     <string name="room_no_ideas_title">No ideas yet</string>
